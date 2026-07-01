@@ -1,0 +1,10 @@
+{
+  "users": [
+    {
+      "username": "soren",
+      "salt": "7913c1f3ba11b0629c0bc7fd7401e794",
+      "hash": "90e1f3e4973eb92828b4888d04eaa9424e95bb015c3d76f97707aa0e44cb5f50",
+      "role": "superadmin"
+    }
+  ]
+}

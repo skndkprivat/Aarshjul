@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<title>Hash-generator / Hash generator</title>
+<style>
+  body{font-family:system-ui,sans-serif;max-width:560px;margin:60px auto;padding:0 20px;color:#1B2430;}
+  h1{font-size:1.3rem;}
+  label{display:block;font-size:.85rem;font-weight:600;margin:16px 0 6px;color:#5B6672;}
+  input,select{width:100%;padding:9px 10px;border:1px solid #DDE3E6;border-radius:8px;font-size:.95rem;box-sizing:border-box;}
+  button{margin-top:20px;padding:10px 16px;border:none;background:#2F6F5E;color:#fff;border-radius:8px;font-weight:600;cursor:pointer;}
+  pre{background:#F3F5F6;padding:16px;border-radius:8px;font-size:.85rem;overflow-x:auto;margin-top:20px;white-space:pre-wrap;word-break:break-all;}
+  .note{color:#5B6672;font-size:.85rem;line-height:1.5;}
+</style>
+</head>
+<body>
+<h1>🔐 Hash-generator (DA) / Hash generator (EN)</h1>
+<p class="note">
+  DA: Brug dette værktøj lokalt til at oprette en ny bruger. Kopiér JSON-resultatet ind i den relevante <code>users.json</code>-fil, og upload den til serveren. Adgangskoden sendes aldrig nogen steder – alt sker i din browser.<br><br>
+  EN: Use this tool locally to create a new user. Copy the resulting JSON into the relevant <code>users.json</code> file and upload it to the server. The password is never sent anywhere – everything happens in your browser.
+</p>
+
+<label>Brugernavn / Username</label>
+<input id="username" type="text" placeholder="fx formand">
+
+<label>Adgangskode / Password</label>
+<input id="password" type="text" placeholder="Vælg en stærk adgangskode">
+
+<label>Rolle / Role</label>
+<select id="role">
+  <option value="admin">admin (kan redigere / can edit)</option>
+  <option value="viewer">viewer (kan kun læse / read-only)</option>
+  <option value="superadmin">superadmin (global, alle kunder / global, all customers)</option>
+</select>
+
+<button id="generate">Generér / Generate</button>
+
+<pre id="output"></pre>
+
+<script>
+async function sha256Hex(str){
+  const buf = new TextEncoder().encode(str);
+  const digest = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function randomHex(bytes){
+  const arr = new Uint8Array(bytes);
+  crypto.getRandomValues(arr);
+  return Array.from(arr).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+document.getElementById('generate').addEventListener('click', async ()=>{
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
+  const role = document.getElementById('role').value;
+  if(!username || !password){
+    document.getElementById('output').textContent = 'Udfyld brugernavn og adgangskode / Fill in username and password';
+    return;
+  }
+  const salt = randomHex(16);
+  const hash = await sha256Hex(salt + ':' + password);
+  const obj = {username, salt, hash, role};
+  document.getElementById('output').textContent = JSON.stringify(obj, null, 2);
+});
+</script>
+</body>
+</html>
