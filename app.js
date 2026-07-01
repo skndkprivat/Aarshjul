@@ -23,7 +23,7 @@ const I18N = {
     lockedOut:'For mange forsøg. Prøv igen om {s} sekunder.', sessionExpired:'Du er blevet logget ud pga. inaktivitet.',
     newActivityTitle:'Ny aktivitet', editActivityTitle:'Redigér aktivitet', selectMonth:'Måned',
     usersTitle:'Brugere for denne kunde', usersHint:'Brugere kan kun oprettes/ændres via hash-generator.html og manuel filupload, da løsningen ikke har en backend. Se README.',
-    yearsTitle:'Håndter år', addYear:'Tilføj nyt år', yearsHint:'Opretter en tom årsfil ({kunde}-{år}.json) du kan downloade og uploade til roden af repoet — husk også at erstatte customers.json.',
+    yearsTitle:'Håndter år', addYear:'Tilføj nyt år', yearsHint:'Opretter en tom årsfil ({kunde}-{år}.json). I Chrome/Edge kan du vælge at gemme den direkte i din projektmappe via "Gem som"-dialogen; i andre browsere havner filen i Downloads, og du skal selv flytte den. Husk også at erstatte customers.json.',
     downloadFile:'Download fil', close:'Luk', role_superadmin:'Superadmin', role_admin:'Admin', role_viewer:'Læser',
     exportedFor:'Data for', updatedNow:'Ændringer er kun gemt i browseren – husk at eksportere og uploade filen, hvis de skal gemmes permanent.'
   },
@@ -40,7 +40,7 @@ const I18N = {
     lockedOut:'Too many attempts. Try again in {s} seconds.', sessionExpired:'You were logged out due to inactivity.',
     newActivityTitle:'New activity', editActivityTitle:'Edit activity', selectMonth:'Month',
     usersTitle:'Users for this customer', usersHint:'Users can only be created/changed via hash-generator.html and manual file upload, since this solution has no backend. See README.',
-    yearsTitle:'Manage years', addYear:'Add new year', yearsHint:'Creates an empty year file ({customer}-{year}.json) you can download and upload to the root of the repo — remember to also replace customers.json.',
+    yearsTitle:'Manage years', addYear:'Add new year', yearsHint:'Creates an empty year file ({customer}-{year}.json). In Chrome/Edge you can choose to save it directly into your project folder via the "Save as" dialog; in other browsers it lands in Downloads and you\'ll need to move it yourself. Remember to also replace customers.json.',
     downloadFile:'Download file', close:'Close', role_superadmin:'Super admin', role_admin:'Admin', role_viewer:'Viewer',
     exportedFor:'Data for', updatedNow:'Changes are only saved in the browser – remember to export and upload the file if they should be permanent.'
   }
@@ -568,33 +568,58 @@ function openYearsModal(){
     </div>
   `);
   document.getElementById('cancelYear').addEventListener('click', closeModal);
-  document.getElementById('createYear').addEventListener('click', ()=>{
+  document.getElementById('createYear').addEventListener('click', async ()=>{
     const year = document.getElementById('fYear').value.trim();
     if(!/^\d{4}$/.test(year)) return;
     const blank = {title: `Årshjul ${year}`, activities: []};
     const filename = `${state.customer.id}-${year}.json`;
-    downloadJSON(blank, filename);
+    const saved1 = await downloadJSON(blank, filename);
+    if(!saved1) return; // brugeren annullerede gem-dialogen
     if(!state.customer.years.includes(year)) state.customer.years.push(year);
     const updatedCustomers = {customers: state.customers};
-    downloadJSON(updatedCustomers, 'customers.json');
+    await downloadJSON(updatedCustomers, 'customers.json');
     closeModal();
-    alert(state.lang==='da'
-      ? `Upload "${filename}" og den nye "customers.json" til roden af repoet (samme mappe som index.html) på serveren.`
-      : `Upload "${filename}" and the new "customers.json" to the root of the repo (same folder as index.html) on the server.`);
+    if(!window.showSaveFilePicker){
+      alert(state.lang==='da'
+        ? `Upload "${filename}" og den nye "customers.json" til roden af repoet (samme mappe som index.html) på serveren.`
+        : `Upload "${filename}" and the new "customers.json" to the root of the repo (same folder as index.html) on the server.`);
+    }
   });
 }
 
 /* ---------------- Export helpers ---------------- */
-function downloadJSON(obj, filename){
-  const blob = new Blob([JSON.stringify(obj, null, 2)], {type:'application/json'});
+async function downloadJSON(obj, filename){
+  const jsonStr = JSON.stringify(obj, null, 2);
+
+  // Chrome/Edge: åbn en rigtig "Gem som"-dialog, så filen kan gemmes direkte
+  // i det rigtige repo/mappe i stedet for altid at havne i Downloads.
+  if(window.showSaveFilePicker){
+    try{
+      const handle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: [{ description: 'JSON', accept: {'application/json': ['.json']} }]
+      });
+      const writable = await handle.createWritable();
+      await writable.write(jsonStr);
+      await writable.close();
+      return true;
+    }catch(err){
+      if(err && err.name === 'AbortError') return false; // brugeren fortrød/annullerede dialogen
+      // Andre fejl: fald tilbage til almindelig download herunder
+    }
+  }
+
+  // Fallback (Firefox/Safari, eller hvis dialogen fejlede): almindelig download til Downloads-mappen
+  const blob = new Blob([jsonStr], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = filename;
   document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
+  return true;
 }
-function exportCurrentYearJSON(){
-  downloadJSON(state.yearData, `${state.customer.id}-${state.year}.json`);
+async function exportCurrentYearJSON(){
+  await downloadJSON(state.yearData, `${state.customer.id}-${state.year}.json`);
 }
 function downloadICS(activity){
   const [day, month] = (activity.date||'').split('/').map(n=>parseInt(n,10));
