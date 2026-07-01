@@ -23,7 +23,7 @@ const I18N = {
     lockedOut:'For mange forsøg. Prøv igen om {s} sekunder.', sessionExpired:'Du er blevet logget ud pga. inaktivitet.',
     newActivityTitle:'Ny aktivitet', editActivityTitle:'Redigér aktivitet', selectMonth:'Måned',
     usersTitle:'Brugere for denne kunde', usersHint:'Brugere kan kun oprettes/ændres via hash-generator.html og manuel filupload, da løsningen ikke har en backend. Se README.',
-    yearsTitle:'Håndter år', addYear:'Tilføj nyt år', yearsHint:'Opretter en tom årsfil du kan downloade og lægge på serveren under data/{kunde}/years/{år}.json — husk også at opdatere customers.json.',
+    yearsTitle:'Håndter år', addYear:'Tilføj nyt år', yearsHint:'Opretter en tom årsfil ({kunde}-{år}.json) du kan downloade og uploade til roden af repoet — husk også at erstatte customers.json.',
     downloadFile:'Download fil', close:'Luk', role_superadmin:'Superadmin', role_admin:'Admin', role_viewer:'Læser',
     exportedFor:'Data for', updatedNow:'Ændringer er kun gemt i browseren – husk at eksportere og uploade filen, hvis de skal gemmes permanent.'
   },
@@ -40,7 +40,7 @@ const I18N = {
     lockedOut:'Too many attempts. Try again in {s} seconds.', sessionExpired:'You were logged out due to inactivity.',
     newActivityTitle:'New activity', editActivityTitle:'Edit activity', selectMonth:'Month',
     usersTitle:'Users for this customer', usersHint:'Users can only be created/changed via hash-generator.html and manual file upload, since this solution has no backend. See README.',
-    yearsTitle:'Manage years', addYear:'Add new year', yearsHint:'Creates an empty year file you can download and place on the server under data/{customer}/years/{year}.json — remember to also update customers.json.',
+    yearsTitle:'Manage years', addYear:'Add new year', yearsHint:'Creates an empty year file ({customer}-{year}.json) you can download and upload to the root of the repo — remember to also replace customers.json.',
     downloadFile:'Download file', close:'Close', role_superadmin:'Super admin', role_admin:'Admin', role_viewer:'Viewer',
     exportedFor:'Data for', updatedNow:'Changes are only saved in the browser – remember to export and upload the file if they should be permanent.'
   }
@@ -135,11 +135,11 @@ async function init(){
   document.getElementById('manageYearsBtn').addEventListener('click', openYearsModal);
 
   try{
-    const data = await fetchJSON('data/customers.json');
+    const data = await fetchJSON('customers.json');
     state.customers = data.customers || [];
   }catch(err){
     document.getElementById('errorCustomer').innerHTML =
-      `<div class="error-msg">⚠ Kunne ikke indlæse kundeliste (data/customers.json). Tjek at siden køres via en webserver, ikke som lokal fil.</div>`;
+      `<div class="error-msg">⚠ Kunne ikke indlæse kundeliste (customers.json). Tjek at siden køres via en webserver, ikke som lokal fil, og at customers.json ligger i samme mappe som index.html.</div>`;
   }
   renderCustomerList();
   applyI18n();
@@ -229,8 +229,8 @@ async function onLoginSubmit(e){
 
   try{
     const [customerUsers, globalUsers] = await Promise.all([
-      fetchJSON(`data/${state.customer.id}/users.json`).catch(()=>({users:[]})),
-      fetchJSON('data/admin-users.json').catch(()=>({users:[]}))
+      fetchJSON(`${state.customer.id}-users.json`).catch(()=>({users:[]})),
+      fetchJSON('admin-users.json').catch(()=>({users:[]}))
     ]);
 
     let match = null, isGlobal = false;
@@ -302,7 +302,7 @@ async function onYearChange(e){
 
 async function loadYearData(){
   try{
-    state.yearData = await fetchJSON(`data/${state.customer.id}/years/${state.year}.json`);
+    state.yearData = await fetchJSON(`${state.customer.id}-${state.year}.json`);
   }catch(err){
     state.yearData = {title: `Årshjul ${state.year}`, activities: []};
   }
@@ -572,14 +572,15 @@ function openYearsModal(){
     const year = document.getElementById('fYear').value.trim();
     if(!/^\d{4}$/.test(year)) return;
     const blank = {title: `Årshjul ${year}`, activities: []};
-    downloadJSON(blank, `${year}.json`);
+    const filename = `${state.customer.id}-${year}.json`;
+    downloadJSON(blank, filename);
     if(!state.customer.years.includes(year)) state.customer.years.push(year);
     const updatedCustomers = {customers: state.customers};
     downloadJSON(updatedCustomers, 'customers.json');
     closeModal();
     alert(state.lang==='da'
-      ? `Upload "${year}.json" til data/${state.customer.id}/years/ og erstat data/customers.json på serveren.`
-      : `Upload "${year}.json" to data/${state.customer.id}/years/ and replace data/customers.json on the server.`);
+      ? `Upload "${filename}" og den nye "customers.json" til roden af repoet (samme mappe som index.html) på serveren.`
+      : `Upload "${filename}" and the new "customers.json" to the root of the repo (same folder as index.html) on the server.`);
   });
 }
 
@@ -593,7 +594,7 @@ function downloadJSON(obj, filename){
   URL.revokeObjectURL(url);
 }
 function exportCurrentYearJSON(){
-  downloadJSON(state.yearData, `${state.year}.json`);
+  downloadJSON(state.yearData, `${state.customer.id}-${state.year}.json`);
 }
 function downloadICS(activity){
   const [day, month] = (activity.date||'').split('/').map(n=>parseInt(n,10));
