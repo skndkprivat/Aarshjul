@@ -1,16 +1,10 @@
 {
   "users": [
     {
-      "username": "formand",
-      "salt": "2fa3e4e19390f2cd93f7d56a7d36d7a8",
-      "hash": "9f58606a6d9875a106e644a753ba38c15534bae81afbad4e0f3542cefc55b31a",
+      "username": "admin",
+      "salt": "668baa72f4f21028025dbf86b56f55d5",
+      "hash": "56feabd9e6eed52122f01a71c78a78b30575e57a6b0de31ebed1825d2dee0ae9",
       "role": "admin"
-    },
-    {
-      "username": "medlem",
-      "salt": "0187d54fe779309404a2305a48511843",
-      "hash": "d0f5d513244197dbb45603c6e7425507440217954647333d11725b889f5a930a",
-      "role": "viewer"
     }
   ]
 }
