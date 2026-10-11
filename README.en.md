@@ -1,116 +1,89 @@
-# Year Wheel – multi-customer solution
+# HCS Year Wheel
 
-A static web app that displays and edits a "year wheel" (circular activity calendar) for multiple customers, with customer selection, year switching, and per-customer login. Built as plain HTML/JS/CSS with no backend, so it can be hosted anywhere (e.g. GitHub Pages, which you already use for Form-Tracker).
+A static web app that shows a "year wheel" (circular activity calendar) for Holbæk Cykelsport. The wheel is public and needs no login. Admins can log in, edit the activities, and publish the changes straight to GitHub from the browser. There is no backend, and the site is hosted on GitHub Pages: `https://skndkprivat.github.io/Aarshjul/`
+
+The page is embedded on the club's website with an `<iframe>`:
+
+```html
+<p><iframe src="https://skndkprivat.github.io/Aarshjul/" width="100%" height="1500" frameborder="0" scrolling="yes" style="border:0;max-width:1200px;display:block;margin:0 auto;"></iframe></p>
+```
 
 ## File structure
 
-All files sit **flat in the same folder** (no subfolders for data) — this makes uploads to GitHub via the browser reliable, since GitHub's "drag files in" upload doesn't always preserve folder structure.
+All files sit flat in the same folder.
 
 ```
 /
-├── index.html              ← the app itself
-├── app.js                  ← all logic
+├── index.html              ← the page and its look
+├── app.js                  ← all logic (display, login, editing, publishing)
+├── customers.json          ← customer (name, years)
+├── hcs-users.json          ← admin users for "hcs" (hash only, never plaintext)
+├── admin-users.json        ← global users who can log in to any customer (empty)
+├── hcs-2026.json           ← activities for 2026
+├── hcs-2027.json …         ← one file per year
 ├── hash-generator.html     ← local tool for creating new users
-├── customers.json          ← public list of customers (name, color, years)
-├── admin-users.json        ← global super admin users (access to all customers)
-├── hcs-users.json          ← users for customer "hcs" (hash only, never plaintext)
-├── hcs-2026.json           ← activities for customer "hcs", year 2026
-└── {customer-id}-{year}.json, {customer-id}-users.json  ← same pattern for each new customer/year
+└── publicer.bat            ← fallback: publish with git from Windows
 ```
 
-The naming pattern is `{customer-id}-users.json` and `{customer-id}-{year}.json`, where `{customer-id}` matches the `id` field in `customers.json`.
-
-## ⚠️ Important: run via a web server, not as a local file
-
-Because data is loaded with `fetch()` from JSON files, the app will **not** work if you simply double-click `index.html`. It must be served over http/https, e.g.:
-
-- Upload to GitHub Pages (see GITHUB-SETUP.en.md)
-- Or run locally: `npx serve .` in the folder, then open the shown `http://localhost` address
-
-## Getting started – demo logins
-
-Three demo users are included for testing:
-
-| Customer | Username | Password | Role |
-|---|---|---|---|
-| Holbæk Cykelsport | `formand` | *(fjernet – opret egne med hash-generator.html)* | Admin (can edit) |
-| Holbæk Cykelsport | `medlem` | *(fjernet)* | Viewer (read-only) |
-| (global) | `soren` | *(fjernet)* | Super admin (all customers) |
-
-**Change these passwords before production use** – see the user management section below.
-
-> **Note on the underlying data:** I only had partial access to your original 25 activities from the other conversation (January–March are filled in). The rest of the year's activities need to be added via the admin panel or by editing `hcs-2026.json` directly.
+Naming: `{customer-id}-{year}.json` and `{customer-id}-users.json`, where `{customer-id}` matches `id` in `customers.json`. The app opens the first customer in `customers.json`. Add `?kunde=id` to the address to open another.
 
 ## How it works
 
-1. **Select customer** – the landing page lists customers from `customers.json`.
-2. **Log in** – with a username/password tied to the selected customer (or a global super admin account).
-3. **View the wheel** – a circular wheel with 12 months, colored by the customer's theme color. Click a month to expand its activities in the list on the right.
-4. **Switch year** – the dropdown at the top shows the years registered for the customer.
-5. **Edit (admin/super admin only)** – add, edit, and delete activities. Download a `.ics` calendar file per activity that has a date.
+1. **Anyone** can view the wheel. Click a month or an activity for details, and download a calendar file (`.ics`) for activities with a date.
+2. **The year selector** at the top lists the years in `customers.json`. The app opens on the current year.
+3. **Admins** click "Login" and get an editing panel to add, edit, and delete activities.
+4. Changes are only saved when you click **"Udgiv til GitHub"** (publish to GitHub, see below).
 
-## Saving changes permanently
+## Publishing changes
 
-Since this is plain static HTML with no backend, edits are only kept in the browser until exported:
+### Recommended: "Udgiv til GitHub"
 
-1. Click **"Export JSON"** at the top after editing.
-2. Upload the downloaded file (e.g. `hcs-2026.json`) to the root of the repo on GitHub, replacing the existing file.
+The button saves the year file straight into the repo as a commit. The site updates for everyone after about a minute. It needs a GitHub token.
+
+**Create a token (once per person and PC):**
+1. GitHub → Settings → Developer settings → Personal access tokens → **Fine-grained tokens** → Generate new token.
+2. Choose **Only select repositories**, then `Aarshjul`.
+3. Under Repository permissions set **Contents** to **Read and write**. Set an expiry date.
+4. Copy the token. The first time you click "Udgiv til GitHub" the app asks for it. You can choose to remember it on this PC. The "🔑 GitHub-token" button changes or removes it later.
+
+Anyone who publishes needs write access to the repo. Invite them as a collaborator under the repo's Settings → Collaborators, and have them create their own token. Avoid sharing one token, and never send it by email or chat.
+
+**Add a new year:** Click "Tilføj nyt år" and enter the year. The app creates the year file and updates `customers.json` in one go.
+
+### Fallback: download and upload
+
+Without a token, click **"Download JSON"** and save the file under exactly the same name as the existing one (e.g. `hcs-2026.json`). Then either:
+- Go to `https://github.com/skndkprivat/Aarshjul` → **Add file → Upload files**, drag the file in, and click **Commit changes**, or
+- Put it in the local folder and double-click `publicer.bat`. Run `git pull` first if others have published in the meantime.
 
 ## Managing users
 
-There is **no backend**, so users cannot be created directly inside the app. Instead:
+Login only controls who sees the editing panel. Users are stored as salted hashes in `hcs-users.json`.
 
-1. Open `hash-generator.html` locally in your browser.
-2. Enter a username, password, and role (`admin`, `viewer`, or `superadmin`).
-3. The tool generates a JSON object with a random salt and a SHA-256 hash — **the plaintext password never leaves your browser**.
-4. Paste the object into the correct `{customer-id}-users.json` (customer-specific) or `admin-users.json` (global), and upload the file.
+1. Open `hash-generator.html` locally in your browser (double-click).
+2. Enter a username and password, pick the role **admin**, and click "Generér". The password never leaves your browser.
+3. Copy the JSON object into the `users` list in `hcs-users.json`, and publish the file (upload on GitHub, or `publicer.bat`).
 
-Roles:
-- `viewer` – can view the wheel and download calendar files, but not edit.
-- `admin` – can additionally add/edit/delete activities and years for **their own** customer.
-- `superadmin` – can log in to **any** customer without a customer-specific account (typically used by you as the consultant).
+Roles: `admin` can edit. `superadmin` in `admin-users.json` can edit for all customers. `viewer` needs no login, since the wheel is public.
 
-## Adding a new customer
+Use long passwords, since the hashes sit in a public file.
 
-1. Create `{new-customer-id}-users.json` (use the hash generator) and `{new-customer-id}-{year}.json` (empty activity list, see template in `hcs-2026.json`) in the root of the repo.
-2. Add the customer to `customers.json`:
-   ```json
-   { "id": "vattenfall", "name": "Vattenfall DE", "shortName": "VF", "accent": "#1B3B6F", "years": ["2026"] }
-   ```
-3. Upload the new/changed files to the root of the repo (no subfolders).
+## Security
 
-Super admin users (like `soren`) automatically get access to the new customer with no further setup.
-
-## Adding a new year for an existing customer
-
-Log in as admin/super admin → click **"Years"** at the top → enter the year. The app generates two downloadable files:
-- `{customer-id}-{year}.json` – upload to the root of the repo
-- an updated `customers.json` – replace the existing one on the server
-
-## Security – what "robust" means here, and the real limits
-
-This solution is significantly more robust than the original version (a single shared plaintext password hard-coded in the HTML file):
-
-- **Passwords are never stored in plaintext** — only as a salted SHA-256 hash.
-- **Login attempts are rate-limited**: after 5 wrong attempts an account is locked for 60 seconds, and each attempt adds increasing delay (mitigates automated attacks).
-- **Sessions expire automatically** after 30 minutes of inactivity.
-- **Separate users and roles per customer**, instead of one shared code for everyone.
-- Data is sanitized on display, so activity text can't be used to inject malicious code (XSS).
-
-**The honest limitation:** because the app runs 100% in the browser with no server, a technically capable user with developer tools can, in principle, see the hashed passwords when the page fetches `{customer-id}-users.json`. True server-side security isn't achievable without a backend, and GitHub Pages is only free from a public repository (see GITHUB-SETUP.en.md) — so all content, including the hashes, is publicly visible in the repo. This solution is therefore well suited to **internal use with low-to-moderate sensitivity** (e.g. a club's year wheel), but **not** for data requiring real access control (e.g. personal data or business-critical secrets). If that becomes necessary later, the next step is moving login and data protection to a Node.js backend (the same pattern you already use in ArchyGUI/Form-Tracker), where passwords are checked server-side and data isn't sent to the browser until login is verified.
-
-## Customization
-
-- **Colors:** edit the `accent` field per customer in `customers.json`. Month colors in the wheel are generated automatically as shades of this color.
-- **Fonts:** Space Grotesk (headings) + Inter (body text), loaded from Google Fonts in `index.html`.
-- **Language:** the Danish/English button in the top right switches all UI text. Month names are translated automatically.
+- Passwords are never stored in plaintext, only as salted SHA-256 hashes. After 5 wrong attempts an account is locked for 60 seconds, and sessions expire after 30 minutes of inactivity.
+- Activity text is shown as plain text, so it can't inject code (XSS).
+- **The real protection is the GitHub token.** Only someone with a token that has write access can change the files. The login on the page is a convenience that hides the panel, but it can't stop a technical user who fakes the view in their own browser. The token is stored in the browser (`sessionStorage`, or `localStorage` if you choose "Remember"). Use a token with Contents access to this one repo only, and delete it on GitHub if it ends up in the wrong hands.
+- The repo is public, so all content, including the hashes, is visible to everyone. The solution suits a club's year wheel, but not sensitive data.
 
 ## Troubleshooting
 
 | Problem | Solution |
 |---|---|
-| Page shows "Could not load customer list" | Either you're opening the file directly (`file://`) instead of via a web server, or `customers.json` isn't in the same folder as `index.html` on the server |
-| Can't log in | Check the username/password, and that the account exists in the correct `{customer-id}-users.json` |
-| Account is locked | Wait 60 seconds, or clear `sessionStorage` in the browser |
-| Changes disappear after reload | Remember to export the JSON and upload it to the server — nothing saves automatically |
-| New year/customer doesn't show up | Check that `customers.json` was updated and uploaded correctly, and that filenames exactly match the `id` field (case-sensitive) |
+| The page or the year selector is empty | Press Ctrl+F5. If you open the file as `file://`, use GitHub Pages or `npx serve .` instead |
+| Can't log in | Check the username and password, and that the user exists in `hcs-users.json`. A locked account can try again after 60 seconds |
+| "Tokenet er ugyldigt eller udløbet" (token invalid or expired) | Create a new token (see above) and enter it via "🔑 GitHub-token" |
+| "Tokenet har ikke skriveadgang" (no write access) | The token must be selected for the `Aarshjul` repo with **Contents: Read and write**, and the account must have access to the repo |
+| "Filen blev ændret af en anden samtidig" (file changed concurrently) | Reload the page and try again |
+| Changes disappear when the page reloads | They weren't published. Click "Udgiv til GitHub" |
+| A published change doesn't show | Wait about a minute and press Ctrl+F5 |
+| `git push` is rejected | Run `git pull` first, because a newer version has been published |
