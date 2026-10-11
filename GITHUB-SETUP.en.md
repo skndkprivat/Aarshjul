@@ -57,7 +57,7 @@ git push -u origin main
 
 1. Open the URL from step 3
 2. You should see the **"Select customer"** screen with Holbæk Cykelsport
-3. Log in with the demo account `formand` / `hcs2026admin` and check that the wheel displays
+3. Log in with an admin account you created yourself and check that the wheel displays
 4. **Change the passwords** right away (see README.en.md, "Managing users" section)
 
 ## 5. Future updates (new activities, new customers, new years)

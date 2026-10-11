@@ -33,9 +33,9 @@ Der er oprettet tre demo-brugere til afprøvning:
 
 | Kunde | Brugernavn | Adgangskode | Rolle |
 |---|---|---|---|
-| Holbæk Cykelsport | `formand` | `hcs2026admin` | Admin (kan redigere) |
-| Holbæk Cykelsport | `medlem` | `hcs2026` | Læser (kun visning) |
-| (global) | `soren` | `ChangeMe!2026` | Superadmin (alle kunder) |
+| Holbæk Cykelsport | `formand` | *(fjernet – opret egne med hash-generator.html)* | Admin (kan redigere) |
+| Holbæk Cykelsport | `medlem` | *(fjernet)* | Læser (kun visning) |
+| (global) | `soren` | *(fjernet)* | Superadmin (alle kunder) |
 
 **Skift disse adgangskoder før produktion** – se afsnittet om brugere nedenfor.
 

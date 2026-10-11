@@ -3,264 +3,129 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Årshjul</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<title>HCS Årshjul</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <style>
-  :root{
-    --bg:#F3F5F6;
-    --surface:#FFFFFF;
-    --ink:#1B2430;
-    --ink-soft:#5B6672;
-    --border:#DDE3E6;
-    --accent:#2F6F5E;
-    --accent-soft:#E4EFEC;
-    --danger:#B3452C;
-    --danger-soft:#F7E9E5;
-    --radius:10px;
-    --shadow:0 1px 2px rgba(27,36,48,.06), 0 8px 24px -12px rgba(27,36,48,.12);
-    --font-display:'Space Grotesk',system-ui,sans-serif;
-    --font-body:'Inter',system-ui,sans-serif;
-  }
-  *{box-sizing:border-box;}
-  html,body{margin:0;padding:0;}
-  body{
-    background:var(--bg);
-    color:var(--ink);
-    font-family:var(--font-body);
-    min-height:100vh;
-    -webkit-font-smoothing:antialiased;
-  }
-  h1,h2,h3,.display{font-family:var(--font-display);letter-spacing:-0.01em;}
-  button{font-family:inherit;}
-  .app{min-height:100vh;display:flex;flex-direction:column;}
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px;}
+  .container{max-width:1400px;margin:0 auto;background:#fff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:40px;}
+  h1{color:#333;font-size:2.5em;text-shadow:2px 2px 4px rgba(0,0,0,.1);margin:0;}
+  .subtitle{text-align:center;color:#666;margin-bottom:30px;font-size:1.1em;}
   .hidden{display:none !important;}
-
-  /* ---------- Top bar (shown once logged in) ---------- */
-  .topbar{
-    display:flex;align-items:center;gap:16px;
-    padding:14px 24px;background:var(--surface);
-    border-bottom:1px solid var(--border);
-    position:sticky;top:0;z-index:20;
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:30px;flex-wrap:wrap;}
+  .title-group{display:flex;align-items:center;gap:15px;flex-wrap:wrap;}
+  .badge{background:#4CAF50;color:#fff;padding:4px 12px;border-radius:12px;font-size:.75em;font-weight:600;}
+  .top-actions{display:flex;gap:10px;align-items:center;}
+  button{padding:12px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;transition:transform .2s,box-shadow .2s;}
+  button:hover{transform:translateY(-2px);box-shadow:0 5px 15px rgba(102,126,234,.4);}
+  .btn-outline{background:#fff;color:#667eea;border:2px solid #667eea;padding:10px 30px;}
+  .btn-outline:hover{background:#667eea;color:#fff;}
+  .btn-logout{background:linear-gradient(135deg,#ff9a9e 0%,#fecfef 100%);color:#333;padding:8px 20px;}
+  .btn-secondary{background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%);}
+  .btn-success{background:linear-gradient(135deg,#4facfe 0%,#00f2fe 100%);}
+  .btn-danger{background:linear-gradient(135deg,#fa709a 0%,#fee140 100%);}
+  .btn-small{padding:8px 15px;font-size:14px;}
+  .btn-calendar{background:linear-gradient(135deg,#43e97b 0%,#38f9d7 100%);padding:5px 12px;font-size:.85em;margin-left:10px;}
+  select,input,textarea{width:100%;padding:12px;border:2px solid #ddd;border-radius:8px;font-size:14px;font-family:inherit;}
+  select:focus,input:focus,textarea:focus{outline:none;border-color:#667eea;}
+  select.year{width:auto;padding:9px 12px;font-weight:600;color:#667eea;border-color:#667eea;}
+  textarea{min-height:80px;resize:vertical;}
+  label{display:block;margin-bottom:5px;color:#555;font-weight:500;}
+  .form-group{margin-bottom:15px;}
+  .chart-container{position:relative;margin:40px auto;max-width:800px;height:800px;}
+  .month-details{margin-top:30px;padding:20px;background:#f8f9fa;border-radius:15px;border:3px solid #667eea;}
+  .month-details h3{color:#333;margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;}
+  .close-details{background:#dc3545;color:#fff;border-radius:50%;width:30px;height:30px;padding:0;font-size:18px;line-height:1;}
+  .detail-item{background:#fff;padding:15px;margin-bottom:10px;border-radius:8px;border-left:4px solid #667eea;}
+  .detail-item h4{margin-bottom:8px;color:#333;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;}
+  .detail-meta{color:#666;font-size:.9em;line-height:1.6;white-space:pre-line;}
+  .admin-panel{margin-top:40px;padding:30px;background:#f8f9fa;border-radius:15px;}
+  .admin-panel h2{color:#333;margin-bottom:20px;padding-bottom:10px;border-bottom:3px solid #667eea;}
+  .date-row{display:grid;grid-template-columns:2fr 1fr;gap:10px;align-items:end;}
+  .date-preview{padding:12px;background:#e9ecef;border-radius:8px;text-align:center;font-weight:600;}
+  .activity-item{background:#fff;padding:15px;margin-bottom:10px;border-radius:10px;border-left:4px solid #667eea;display:flex;justify-content:space-between;align-items:center;gap:10px;}
+  .activity-meta{color:#666;font-size:.9em;margin-top:5px;}
+  .activity-buttons{display:flex;gap:10px;}
+  .notice{background:#fff3cd;color:#664d03;padding:12px 15px;border-radius:8px;margin-bottom:20px;border:1px solid #ffecb5;}
+  .success-message{background:#d4edda;color:#155724;padding:15px;border-radius:8px;margin-bottom:20px;border:1px solid #c3e6cb;text-align:center;}
+  .error{background:#f8d7da;color:#842029;padding:10px 12px;border-radius:8px;margin-bottom:15px;}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50;}
+  .login-box{background:#f8f9fa;border-radius:15px;box-shadow:0 5px 15px rgba(0,0,0,.2);padding:30px;width:100%;max-width:400px;}
+  .login-box h2{text-align:center;margin-bottom:20px;color:#333;}
+  .login-box button{width:100%;}
+  .login-box button+button{margin-top:10px;}
+  .footer-note{text-align:center;color:#888;font-size:.8em;margin-top:30px;}
+  @media(max-width:768px){
+    .container{padding:20px;} h1{font-size:1.8em;} .chart-container{height:500px;}
+    .activity-item{flex-direction:column;align-items:flex-start;} .activity-buttons{width:100%;} .activity-buttons button{flex:1;}
+    .btn-calendar{margin-left:0;margin-top:5px;}
   }
-  .topbar .brand{font-family:var(--font-display);font-weight:700;font-size:1.05rem;display:flex;align-items:center;gap:10px;}
-  .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);}
-  .topbar .spacer{flex:1;}
-  .select{
-    appearance:none;background:var(--bg);border:1px solid var(--border);
-    border-radius:8px;padding:8px 32px 8px 12px;font-size:.9rem;color:var(--ink);
-    font-weight:600;cursor:pointer;
-    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235B6672' stroke-width='2'><path d='M6 9l6 6 6-6'/></svg>");
-    background-repeat:no-repeat;background-position:right 10px center;
-  }
-  .btn{
-    border:1px solid var(--border);background:var(--surface);color:var(--ink);
-    padding:8px 14px;border-radius:8px;font-size:.88rem;font-weight:600;
-    cursor:pointer;transition:.15s ease;display:inline-flex;align-items:center;gap:6px;
-  }
-  .btn:hover{border-color:var(--accent);color:var(--accent);}
-  .btn:focus-visible, select:focus-visible, input:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
-  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
-  .btn.primary:hover{filter:brightness(1.08);color:#fff;}
-  .btn.danger{color:var(--danger);border-color:var(--danger-soft);}
-  .btn.danger:hover{border-color:var(--danger);}
-  .btn.small{padding:5px 10px;font-size:.78rem;}
-  .badge{
-    font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;
-    padding:3px 8px;border-radius:100px;background:var(--accent-soft);color:var(--accent);
-  }
-
-  /* ---------- Centered auth screens ---------- */
-  .auth-wrap{
-    flex:1;display:flex;align-items:center;justify-content:center;padding:24px;
-  }
-  .auth-card{
-    background:var(--surface);border:1px solid var(--border);border-radius:16px;
-    box-shadow:var(--shadow);padding:36px 32px;width:100%;max-width:400px;
-  }
-  .auth-card h1{font-size:1.4rem;margin:0 0 4px;}
-  .auth-card .sub{color:var(--ink-soft);font-size:.9rem;margin:0 0 24px;}
-  .field{margin-bottom:16px;}
-  .field label{display:block;font-size:.8rem;font-weight:600;color:var(--ink-soft);margin-bottom:6px;}
-  .field input{
-    width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;
-    font-size:.95rem;font-family:inherit;background:var(--bg);color:var(--ink);
-  }
-  .field input:focus{background:var(--surface);}
-  .auth-card .btn.primary{width:100%;justify-content:center;padding:11px;font-size:.95rem;margin-top:6px;}
-  .error-msg{
-    background:var(--danger-soft);color:var(--danger);border-radius:8px;padding:10px 12px;
-    font-size:.85rem;margin-bottom:16px;display:flex;gap:8px;align-items:flex-start;
-  }
-  .customer-list{display:flex;flex-direction:column;gap:8px;}
-  .customer-item{
-    display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--border);
-    border-radius:10px;cursor:pointer;background:var(--bg);text-align:left;width:100%;
-    font-family:inherit;font-size:.92rem;font-weight:600;color:var(--ink);
-  }
-  .customer-item:hover{border-color:var(--accent);}
-  .customer-item .swatch{width:14px;height:14px;border-radius:4px;flex-shrink:0;}
-  .back-link{background:none;border:none;color:var(--ink-soft);font-size:.85rem;cursor:pointer;padding:0;margin-bottom:18px;display:inline-flex;align-items:center;gap:4px;}
-  .back-link:hover{color:var(--accent);}
-  .lang-toggle{
-    position:fixed;top:16px;right:16px;display:flex;gap:2px;background:var(--surface);
-    border:1px solid var(--border);border-radius:100px;padding:3px;z-index:30;
-  }
-  .lang-toggle button{
-    border:none;background:none;padding:5px 12px;border-radius:100px;font-size:.78rem;
-    font-weight:700;cursor:pointer;color:var(--ink-soft);
-  }
-  .lang-toggle button.active{background:var(--accent);color:#fff;}
-
-  /* ---------- Dashboard ---------- */
-  .dashboard{flex:1;display:flex;flex-direction:column;padding:28px 24px 60px;max-width:1180px;margin:0 auto;width:100%;}
-  .dash-head{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:22px;}
-  .dash-head h1{font-size:1.6rem;margin:0;}
-  .dash-head .meta{color:var(--ink-soft);font-size:.88rem;margin-top:4px;}
-  .layout{display:grid;grid-template-columns:minmax(320px,460px) 1fr;gap:28px;align-items:start;}
-  @media (max-width: 860px){ .layout{grid-template-columns:1fr;} }
-
-  .wheel-card, .list-card{
-    background:var(--surface);border:1px solid var(--border);border-radius:16px;
-    box-shadow:var(--shadow);padding:20px;
-  }
-  .wheel-card{position:sticky;top:86px;}
-  @media (max-width: 860px){ .wheel-card{position:static;} }
-  .wheel-card svg{width:100%;height:auto;display:block;}
-  .wheel-card .hint{text-align:center;color:var(--ink-soft);font-size:.78rem;margin-top:10px;}
-
-  .list-card h2{font-size:1.05rem;margin:0 0 4px;}
-  .list-card .sub{color:var(--ink-soft);font-size:.85rem;margin:0 0 16px;}
-  .month-group{margin-bottom:18px;}
-  .month-group summary{
-    cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px;
-    font-family:var(--font-display);font-weight:600;font-size:.95rem;padding:8px 0;
-    border-bottom:1px solid var(--border);
-  }
-  .month-group summary::-webkit-details-marker{display:none;}
-  .month-group summary .m-dot{width:10px;height:10px;border-radius:3px;}
-  .month-group summary::after{content:'▾';margin-left:auto;color:var(--ink-soft);font-size:.75rem;}
-  .month-group[open] summary::after{content:'▴';}
-  .activity-row{
-    display:flex;align-items:flex-start;gap:10px;padding:12px 4px;border-bottom:1px dashed var(--border);
-  }
-  .activity-row:last-child{border-bottom:none;}
-  .activity-row .a-main{flex:1;min-width:0;}
-  .activity-row .a-name{font-weight:600;font-size:.92rem;}
-  .activity-row .a-meta{color:var(--ink-soft);font-size:.8rem;margin-top:2px;}
-  .activity-row .a-actions{display:flex;gap:6px;flex-shrink:0;}
-  .empty-state{color:var(--ink-soft);font-size:.85rem;padding:16px 4px;text-align:center;}
-
-  .add-row{margin-top:8px;}
-
-  /* ---------- Modal ---------- */
-  .modal-overlay{
-    position:fixed;inset:0;background:rgba(27,36,48,.45);display:flex;
-    align-items:center;justify-content:center;z-index:50;padding:20px;
-  }
-  .modal{
-    background:var(--surface);border-radius:16px;box-shadow:var(--shadow);
-    padding:28px;width:100%;max-width:440px;max-height:90vh;overflow-y:auto;
-  }
-  .modal h2{font-size:1.1rem;margin:0 0 18px;}
-  .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;}
-
-  .footer-note{
-    text-align:center;color:var(--ink-soft);font-size:.75rem;padding:20px;
-  }
-
-  @media print{
-    .topbar,.lang-toggle,.list-card,.footer-note,.a-actions,.add-row{display:none !important;}
-    .layout{grid-template-columns:1fr;}
-    .wheel-card{box-shadow:none;border:none;position:static;}
-  }
+  @media print{ .top-actions,.admin-panel,.close-details,.btn-calendar,.footer-note{display:none !important;} body{background:#fff;padding:0;} .container{box-shadow:none;} }
 </style>
 </head>
 <body>
-<div class="lang-toggle" id="langToggle">
-  <button data-lang="da" class="active">DA</button>
-  <button data-lang="en">EN</button>
-</div>
-
-<div class="app" id="app">
-
-  <!-- ======= STEP 1: Vælg kunde ======= -->
-  <section class="auth-wrap" id="screen-customer">
-    <div class="auth-card">
-      <h1 data-i18n="pickCustomerTitle">Vælg kunde</h1>
-      <p class="sub" data-i18n="pickCustomerSub">Vælg hvilken kundes årshjul du vil åbne.</p>
-      <div id="errorCustomer"></div>
-      <div class="customer-list" id="customerList"></div>
+<div class="container">
+  <div class="topbar">
+    <div class="title-group">
+      <h1 id="pageTitle">📅 HCS Årshjul</h1>
+      <span class="badge" id="roleBadge">v5.0</span>
     </div>
-  </section>
-
-  <!-- ======= STEP 2: Login ======= -->
-  <section class="auth-wrap hidden" id="screen-login">
-    <div class="auth-card">
-      <button class="back-link" id="backToCustomers">← <span data-i18n="back">Tilbage</span></button>
-      <h1 id="loginTitle" data-i18n="loginTitle">Log ind</h1>
-      <p class="sub" id="loginSub"></p>
-      <div id="errorLogin"></div>
-      <form id="loginForm">
-        <div class="field">
-          <label data-i18n="username">Brugernavn</label>
-          <input type="text" id="loginUsername" autocomplete="username" required>
-        </div>
-        <div class="field">
-          <label data-i18n="password">Adgangskode</label>
-          <input type="password" id="loginPassword" autocomplete="current-password" required>
-        </div>
-        <button type="submit" class="btn primary" id="loginSubmit" data-i18n="login">Log ind</button>
-      </form>
+    <div class="top-actions">
+      <select class="year" id="yearSelect" aria-label="Vælg år"></select>
+      <button class="btn-outline" id="loginBtn">Login</button>
+      <button class="btn-logout hidden" id="logoutBtn">Log ud</button>
     </div>
-  </section>
-
-  <!-- ======= STEP 3: Dashboard ======= -->
-  <div class="hidden" id="screen-dashboard">
-    <div class="topbar">
-      <div class="brand"><span class="dot" id="brandDot"></span><span id="brandName">—</span></div>
-      <span class="badge" id="roleBadge"></span>
-      <div class="spacer"></div>
-      <select class="select" id="yearSelect"></select>
-      <button class="btn small" id="printBtn" data-i18n="print">🖶 Print</button>
-      <button class="btn small" id="switchCustomerBtn" data-i18n="switchCustomer">Skift kunde</button>
-      <button class="btn small" id="logoutBtn" data-i18n="logout">Log ud</button>
-    </div>
-
-    <div class="dashboard">
-      <div class="dash-head">
-        <div>
-          <h1 id="wheelTitle">Årshjul</h1>
-          <div class="meta" id="wheelMeta"></div>
-        </div>
-        <div id="adminTools" class="hidden" style="display:flex;gap:8px;">
-          <button class="btn small" id="manageUsersBtn" data-i18n="manageUsers">👥 Brugere</button>
-          <button class="btn small" id="manageYearsBtn" data-i18n="manageYears">🗓️ År</button>
-          <button class="btn small" id="exportJsonBtn" data-i18n="exportJson">⬇ Eksportér JSON</button>
-        </div>
-      </div>
-
-      <div class="layout">
-        <div class="wheel-card">
-          <svg id="wheelSvg" viewBox="0 0 460 460"></svg>
-          <p class="hint" data-i18n="wheelHint">Klik på en måned for at folde aktiviteterne ud.</p>
-        </div>
-
-        <div class="list-card">
-          <h2 data-i18n="activitiesTitle">Aktiviteter</h2>
-          <p class="sub" data-i18n="activitiesSub">Åbn en måned for at se og redigere aktiviteter.</p>
-          <div id="monthGroups"></div>
-        </div>
-      </div>
-    </div>
-
-    <p class="footer-note" id="footerNote"></p>
   </div>
 
+  <p class="subtitle" id="subtitle">💡 Klik på en måned for at se dens aktiviteter</p>
+  <div id="loadError"></div>
+
+  <div class="chart-container"><canvas id="wheel"></canvas></div>
+
+  <div id="monthDetails" class="month-details hidden">
+    <h3><span id="detailsMonthName"></span><button class="close-details" id="closeDetails" aria-label="Luk">×</button></h3>
+    <div id="detailsList"></div>
+  </div>
+
+  <div id="adminPanel" class="admin-panel hidden">
+    <h2>📝 Rediger aktiviteter</h2>
+    <div class="notice">Ændringer gemmes kun i browseren, indtil du klikker "Gem JSON-fil" og lægger filen i repoet (se publicer.bat).</div>
+    <div id="successMessage" class="success-message hidden"></div>
+
+    <div class="form-group"><label for="fMonth">Måned:</label><select id="fMonth"></select></div>
+    <div class="form-group"><label for="fName">Aktivitetsnavn: *</label><input id="fName" type="text" placeholder="F.eks. Generalforsamling"></div>
+    <div class="form-group">
+      <label for="fDay">Dag i måneden:</label>
+      <div class="date-row"><input id="fDay" type="number" min="1" max="31" placeholder="F.eks. 19"><span class="date-preview" id="datePreview">--/--</span></div>
+    </div>
+    <div class="form-group"><label for="fResp">Ansvarlig:</label><input id="fResp" type="text"></div>
+    <div class="form-group"><label for="fNotes">Bemærkninger:</label><textarea id="fNotes"></textarea></div>
+    <button id="addBtn">Tilføj aktivitet</button>
+    <button id="updateBtn" class="btn-success hidden">Gem ændringer</button>
+    <button id="cancelBtn" class="btn-secondary hidden" style="margin-top:10px">Annuller</button>
+
+    <div style="margin-top:30px"><h3>Aktuelle aktiviteter</h3><div id="activityList"></div></div>
+
+    <div style="margin-top:30px;display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn-success" id="saveJsonBtn">⬇️ Gem JSON-fil</button>
+      <button class="btn-secondary" id="addYearBtn">🗓️ Tilføj nyt år</button>
+    </div>
+  </div>
+
+  <p class="footer-note" id="footerNote"></p>
 </div>
 
-<div id="modalRoot"></div>
+<div id="loginOverlay" class="overlay hidden">
+  <form class="login-box" id="loginForm">
+    <h2>🔐 Administrator login</h2>
+    <div id="loginError"></div>
+    <div class="form-group"><label for="lUser">Brugernavn:</label><input id="lUser" type="text" autocomplete="username" required></div>
+    <div class="form-group"><label for="lPass">Adgangskode:</label><input id="lPass" type="password" autocomplete="current-password" required></div>
+    <button type="submit" id="loginSubmit">Log ind</button>
+    <button type="button" class="btn-secondary" id="loginCancel">Annuller</button>
+  </form>
+</div>
 
 <script src="app.js"></script>
 </body>

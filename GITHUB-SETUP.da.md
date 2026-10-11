@@ -57,7 +57,7 @@ git push -u origin main
 
 1. Åbn URL'en fra trin 3
 2. Du bør se **"Vælg kunde"**-skærmen med Holbæk Cykelsport
-3. Log ind med demo-kontoen `formand` / `hcs2026admin` og tjek at hjulet vises
+3. Log ind med en admin-konto du selv har oprettet og tjek at hjulet vises
 4. **Skift adgangskoderne** med det samme (se README.da.md, afsnit "Administrere brugere")
 
 ## 5. Fremtidige opdateringer (nye aktiviteter, nye kunder, nye år)

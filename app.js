@@ -1,650 +1,439 @@
 /* ============================================================
-   Årshjul – multi-kunde app (statisk HTML, ingen backend)
-   Sikkerhedsnote: se README for begrænsninger ved ren statisk hosting.
+   HCS Årshjul – statisk HTML, ingen backend.
+   Offentlig visning uden login; redigering kræver login (admin).
+   Adgangskoder ligger kun som saltet SHA-256-hash i *-users.json.
    ============================================================ */
 
 const MONTHS = ['jan','feb','mar','apr','maj','jun','jul','aug','sep','okt','nov','dec'];
-const MONTH_LABEL = {
-  da: {jan:'Januar',feb:'Februar',mar:'Marts',apr:'April',maj:'Maj',jun:'Juni',jul:'Juli',aug:'August',sep:'September',okt:'Oktober',nov:'November',dec:'December'},
-  en: {jan:'January',feb:'February',mar:'March',apr:'April',maj:'May',jun:'June',jul:'July',aug:'August',sep:'September',okt:'October',nov:'November',dec:'December'}
-};
-
-const I18N = {
-  da: {
-    pickCustomerTitle:'Vælg kunde', pickCustomerSub:'Vælg hvilken kundes årshjul du vil åbne.',
-    back:'Tilbage', loginTitle:'Log ind', username:'Brugernavn', password:'Adgangskode', login:'Log ind',
-    print:'Print', switchCustomer:'Skift kunde', logout:'Log ud', manageUsers:'Brugere', manageYears:'År',
-    exportJson:'Eksportér JSON', wheelHint:'Klik på en måned for at folde aktiviteterne ud.',
-    activitiesTitle:'Aktiviteter', activitiesSub:'Åbn en måned for at se og redigere aktiviteter.',
-    noActivities:'Ingen aktiviteter i denne måned endnu.', addActivity:'+ Tilføj aktivitet',
-    edit:'Redigér', delete:'Slet', calendar:'Kalender', save:'Gem', cancel:'Annullér',
-    name:'Navn', date:'Dato (dag)', responsible:'Ansvarlig', notes:'Bemærkninger',
-    confirmDelete:'Slet denne aktivitet?', loginError:'Forkert brugernavn eller adgangskode.',
-    lockedOut:'For mange forsøg. Prøv igen om {s} sekunder.', sessionExpired:'Du er blevet logget ud pga. inaktivitet.',
-    newActivityTitle:'Ny aktivitet', editActivityTitle:'Redigér aktivitet', selectMonth:'Måned',
-    usersTitle:'Brugere for denne kunde', usersHint:'Brugere kan kun oprettes/ændres via hash-generator.html og manuel filupload, da løsningen ikke har en backend. Se README.',
-    yearsTitle:'Håndter år', addYear:'Tilføj nyt år', yearsHint:'Opretter en tom årsfil ({kunde}-{år}.json). I Chrome/Edge kan du vælge at gemme den direkte i din projektmappe via "Gem som"-dialogen; i andre browsere havner filen i Downloads, og du skal selv flytte den. Husk også at erstatte customers.json.',
-    downloadFile:'Download fil', close:'Luk', role_superadmin:'Superadmin', role_admin:'Admin', role_viewer:'Læser',
-    exportedFor:'Data for', updatedNow:'Ændringer er kun gemt i browseren – husk at eksportere og uploade filen, hvis de skal gemmes permanent.'
-  },
-  en: {
-    pickCustomerTitle:'Select customer', pickCustomerSub:'Choose which customer\'s year wheel to open.',
-    back:'Back', loginTitle:'Log in', username:'Username', password:'Password', login:'Log in',
-    print:'Print', switchCustomer:'Switch customer', logout:'Log out', manageUsers:'Users', manageYears:'Years',
-    exportJson:'Export JSON', wheelHint:'Click a month to expand its activities.',
-    activitiesTitle:'Activities', activitiesSub:'Open a month to view and edit activities.',
-    noActivities:'No activities in this month yet.', addActivity:'+ Add activity',
-    edit:'Edit', delete:'Delete', calendar:'Calendar', save:'Save', cancel:'Cancel',
-    name:'Name', date:'Date (day)', responsible:'Responsible', notes:'Notes',
-    confirmDelete:'Delete this activity?', loginError:'Incorrect username or password.',
-    lockedOut:'Too many attempts. Try again in {s} seconds.', sessionExpired:'You were logged out due to inactivity.',
-    newActivityTitle:'New activity', editActivityTitle:'Edit activity', selectMonth:'Month',
-    usersTitle:'Users for this customer', usersHint:'Users can only be created/changed via hash-generator.html and manual file upload, since this solution has no backend. See README.',
-    yearsTitle:'Manage years', addYear:'Add new year', yearsHint:'Creates an empty year file ({customer}-{year}.json). In Chrome/Edge you can choose to save it directly into your project folder via the "Save as" dialog; in other browsers it lands in Downloads and you\'ll need to move it yourself. Remember to also replace customers.json.',
-    downloadFile:'Download file', close:'Close', role_superadmin:'Super admin', role_admin:'Admin', role_viewer:'Viewer',
-    exportedFor:'Data for', updatedNow:'Changes are only saved in the browser – remember to export and upload the file if they should be permanent.'
-  }
-};
+const MONTH_NAME = {jan:'Januar',feb:'Februar',mar:'Marts',apr:'April',maj:'Maj',jun:'Juni',jul:'Juli',aug:'August',sep:'September',okt:'Oktober',nov:'November',dec:'December'};
+const MONTH_COLOR = {jan:'#3498db',feb:'#95a5a6',mar:'#1abc9c',apr:'#2ecc71',maj:'#f39c12',jun:'#f1c40f',jul:'#e67e22',aug:'#e74c3c',sep:'#c0392b',okt:'#e67e22',nov:'#c0392b',dec:'#8e44ad'};
+const SESSION_TTL_MS = 30*60*1000;
 
 const state = {
-  lang: 'da',
-  customers: [],
-  customer: null,      // full customer object
-  session: null,        // {username, role, isGlobal}
-  yearData: null,       // {title, activities}
-  year: null,
-  sessionTimer: null,
+  customer: null, customers: [], year: null, data: {title:'', activities:[]},
+  session: null, chart: null, editingId: null, openMonth: null,
 };
+const $ = id => document.getElementById(id);
 
-function t(key){ return (I18N[state.lang] && I18N[state.lang][key]) || key; }
-
-/* ---------------- Crypto helpers ---------------- */
+/* ---------------- Helpers ---------------- */
 async function sha256Hex(str){
-  const buf = new TextEncoder().encode(str);
-  const digest = await crypto.subtle.digest('SHA-256', buf);
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
   return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
-function randomHex(bytes=16){
-  const arr = new Uint8Array(bytes);
-  crypto.getRandomValues(arr);
-  return Array.from(arr).map(b=>b.toString(16).padStart(2,'0')).join('');
-}
-
-/* ---------------- Fetch helpers ---------------- */
 async function fetchJSON(path){
   const res = await fetch(path, {cache:'no-store'});
   if(!res.ok) throw new Error('Kunne ikke hente ' + path);
   return res.json();
 }
-
-/* ---------------- Lockout (brute-force protection) ---------------- */
-function lockoutKey(customerId, username){ return `lockout:${customerId}:${username.toLowerCase()}`; }
-function getLockout(customerId, username){
-  try{ return JSON.parse(sessionStorage.getItem(lockoutKey(customerId,username))) || {fails:0, until:0}; }
-  catch{ return {fails:0, until:0}; }
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+function el(tag, props={}, ...kids){
+  const e = Object.assign(document.createElement(tag), props);
+  kids.forEach(k=>e.append(k));
+  return e;
 }
-function setLockout(customerId, username, data){
-  sessionStorage.setItem(lockoutKey(customerId,username), JSON.stringify(data));
-}
-function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+const isAdmin = () => !!state.session && (state.session.role==='admin' || state.session.role==='superadmin');
 
-/* ---------------- Session ---------------- */
-const SESSION_TTL_MS = 30*60*1000; // 30 minutter inaktivitet
-function startSession(customerId, username, role, isGlobal){
-  state.session = {customerId, username, role, isGlobal, expires: Date.now()+SESSION_TTL_MS};
-  sessionStorage.setItem('session', JSON.stringify(state.session));
-  resetInactivityWatch();
+/* ---------------- Session (kun denne fane) ---------------- */
+function loadSession(){
+  try{
+    const s = JSON.parse(sessionStorage.getItem('session'));
+    if(s && s.expires > Date.now()) return s;
+  }catch{}
+  sessionStorage.removeItem('session');
+  return null;
+}
+function saveSession(){
+  try{ sessionStorage.setItem('session', JSON.stringify(state.session)); }catch{}
 }
 function touchSession(){
   if(!state.session) return;
-  state.session.expires = Date.now()+SESSION_TTL_MS;
-  sessionStorage.setItem('session', JSON.stringify(state.session));
+  state.session.expires = Date.now() + SESSION_TTL_MS;
+  saveSession();
 }
-function resetInactivityWatch(){
-  ['mousemove','keydown','click','touchstart'].forEach(ev=>{
-    document.addEventListener(ev, touchSession, {passive:true});
-  });
-  if(state.sessionTimer) clearInterval(state.sessionTimer);
-  state.sessionTimer = setInterval(()=>{
-    if(state.session && Date.now() > state.session.expires){
-      doLogout(true);
-    }
-  }, 5000);
+function startSession(username, role){
+  state.session = {customerId: state.customer.id, username, role, expires: Date.now()+SESSION_TTL_MS};
+  saveSession();
 }
 function endSession(){
   state.session = null;
-  sessionStorage.removeItem('session');
-  if(state.sessionTimer) clearInterval(state.sessionTimer);
+  try{ sessionStorage.removeItem('session'); }catch{}
 }
+['mousemove','keydown','click','touchstart'].forEach(ev=>document.addEventListener(ev, touchSession, {passive:true}));
+setInterval(()=>{
+  if(state.session && Date.now() > state.session.expires){ endSession(); renderAll(); }
+}, 5000);
 
-/* ---------------- Bootstrap ---------------- */
-async function init(){
-  document.getElementById('langToggle').addEventListener('click', e=>{
-    const btn = e.target.closest('button[data-lang]');
-    if(!btn) return;
-    setLang(btn.dataset.lang);
-  });
-  document.getElementById('backToCustomers').addEventListener('click', ()=>showScreen('customer'));
-  document.getElementById('loginForm').addEventListener('submit', onLoginSubmit);
-  document.getElementById('switchCustomerBtn').addEventListener('click', ()=>{ endSession(); showScreen('customer'); });
-  document.getElementById('logoutBtn').addEventListener('click', ()=>doLogout(false));
-  document.getElementById('printBtn').addEventListener('click', ()=>window.print());
-  document.getElementById('yearSelect').addEventListener('change', onYearChange);
-  document.getElementById('exportJsonBtn').addEventListener('click', exportCurrentYearJSON);
-  document.getElementById('manageUsersBtn').addEventListener('click', openUsersModal);
-  document.getElementById('manageYearsBtn').addEventListener('click', openYearsModal);
-
-  try{
-    const data = await fetchJSON('customers.json');
-    state.customers = data.customers || [];
-  }catch(err){
-    document.getElementById('errorCustomer').innerHTML =
-      `<div class="error-msg">⚠ Kunne ikke indlæse kundeliste (customers.json). Tjek at siden køres via en webserver, ikke som lokal fil, og at customers.json ligger i samme mappe som index.html.</div>`;
-  }
-  renderCustomerList();
-  applyI18n();
-
-  // Genopret session hvis stadig gyldig (samme fane)
-  const saved = sessionStorage.getItem('session');
-  if(saved){
-    try{
-      const s = JSON.parse(saved);
-      if(s && s.expires > Date.now()){
-        const customer = state.customers.find(c=>c.id===s.customerId);
-        if(customer){
-          state.customer = customer;
-          state.session = s;
-          resetInactivityWatch();
-          enterDashboard();
-          return;
-        }
-      }
-    }catch{}
-    sessionStorage.removeItem('session');
-  }
+/* ---------------- Login ---------------- */
+function lockKey(user){ return `lockout:${state.customer.id}:${user.toLowerCase()}`; }
+function getLock(user){
+  try{ return JSON.parse(sessionStorage.getItem(lockKey(user))) || {fails:0, until:0}; }
+  catch{ return {fails:0, until:0}; }
 }
-document.addEventListener('DOMContentLoaded', init);
+function setLock(user, v){ try{ sessionStorage.setItem(lockKey(user), JSON.stringify(v)); }catch{} }
 
-/* ---------------- Language ---------------- */
-function setLang(lang){
-  state.lang = lang;
-  document.querySelectorAll('#langToggle button').forEach(b=>b.classList.toggle('active', b.dataset.lang===lang));
-  document.documentElement.lang = lang;
-  applyI18n();
-  if(state.session) renderDashboard();
+function showLogin(){
+  $('loginError').innerHTML = '';
+  $('loginForm').reset();
+  $('loginOverlay').classList.remove('hidden');
+  $('lUser').focus();
 }
-function applyI18n(){
-  document.querySelectorAll('[data-i18n]').forEach(el=>{
-    el.textContent = t(el.dataset.i18n);
-  });
-}
+function hideLogin(){ $('loginOverlay').classList.add('hidden'); }
 
-/* ---------------- Screens ---------------- */
-function showScreen(name){
-  document.getElementById('screen-customer').classList.toggle('hidden', name!=='customer');
-  document.getElementById('screen-login').classList.toggle('hidden', name!=='login');
-  document.getElementById('screen-dashboard').classList.toggle('hidden', name!=='dashboard');
-}
-
-/* ---------------- Step 1: customer picker ---------------- */
-function renderCustomerList(){
-  const wrap = document.getElementById('customerList');
-  wrap.innerHTML = '';
-  state.customers.forEach(c=>{
-    const btn = document.createElement('button');
-    btn.className = 'customer-item';
-    btn.innerHTML = `<span class="swatch" style="background:${escapeAttr(c.accent||'#2F6F5E')}"></span><span></span>`;
-    btn.querySelector('span:last-child').textContent = c.name;
-    btn.addEventListener('click', ()=>selectCustomer(c));
-    wrap.appendChild(btn);
-  });
-}
-function selectCustomer(customer){
-  state.customer = customer;
-  document.getElementById('loginSub').textContent = customer.name;
-  document.getElementById('errorLogin').innerHTML = '';
-  document.getElementById('loginForm').reset();
-  showScreen('login');
-  document.getElementById('loginUsername').focus();
-}
-
-/* ---------------- Step 2: login ---------------- */
-async function onLoginSubmit(e){
+async function onLogin(e){
   e.preventDefault();
-  const username = document.getElementById('loginUsername').value.trim();
-  const password = document.getElementById('loginPassword').value;
-  const errorBox = document.getElementById('errorLogin');
-  errorBox.innerHTML = '';
-  const submitBtn = document.getElementById('loginSubmit');
+  const username = $('lUser').value.trim();
+  const password = $('lPass').value;
+  const box = $('loginError');
+  const showErr = msg => { box.replaceChildren(el('div', {className:'error', textContent:msg})); };
+  box.innerHTML = '';
 
-  const lock = getLockout(state.customer.id, username);
+  const lock = getLock(username);
   if(lock.until > Date.now()){
-    const secs = Math.ceil((lock.until - Date.now())/1000);
-    errorBox.innerHTML = `<div class="error-msg">⚠ ${t('lockedOut').replace('{s}', secs)}</div>`;
+    showErr(`For mange forsøg. Prøv igen om ${Math.ceil((lock.until-Date.now())/1000)} sekunder.`);
     return;
   }
-
-  submitBtn.disabled = true;
-  await sleep(250 * (lock.fails||0)); // progressiv forsinkelse mod brute force
-
+  $('loginSubmit').disabled = true;
   try{
-    const [customerUsers, globalUsers] = await Promise.all([
+    await sleep(250 * (lock.fails||0));
+    const [cu, gu] = await Promise.all([
       fetchJSON(`${state.customer.id}-users.json`).catch(()=>({users:[]})),
       fetchJSON('admin-users.json').catch(()=>({users:[]}))
     ]);
-
-    let match = null, isGlobal = false;
-    for(const u of customerUsers.users){
-      if(u.username.toLowerCase() === username.toLowerCase()){
-        const hash = await sha256Hex(u.salt + ':' + password);
-        if(hash === u.hash){ match = u; }
+    let match = null;
+    for(const u of [...cu.users, ...gu.users]){
+      if(u.username.toLowerCase() === username.toLowerCase() && await sha256Hex(u.salt+':'+password) === u.hash){
+        match = u; break;
       }
     }
     if(!match){
-      for(const u of globalUsers.users){
-        if(u.username.toLowerCase() === username.toLowerCase()){
-          const hash = await sha256Hex(u.salt + ':' + password);
-          if(hash === u.hash){ match = u; isGlobal = true; }
-        }
-      }
-    }
-
-    if(!match){
-      const fails = (lock.fails||0) + 1;
-      const until = fails >= 5 ? Date.now() + 60000 : 0;
-      setLockout(state.customer.id, username, {fails, until});
-      errorBox.innerHTML = `<div class="error-msg">⚠ ${t('loginError')}</div>`;
-      submitBtn.disabled = false;
+      const fails = (lock.fails||0)+1;
+      setLock(username, {fails, until: fails>=5 ? Date.now()+60000 : 0});
+      showErr('Forkert brugernavn eller adgangskode.');
       return;
     }
-
-    setLockout(state.customer.id, username, {fails:0, until:0});
-    startSession(state.customer.id, match.username, match.role, isGlobal);
-    await enterDashboard();
+    setLock(username, {fails:0, until:0});
+    startSession(match.username, match.role);
+    hideLogin();
+    renderAll();
   }catch(err){
-    errorBox.innerHTML = `<div class="error-msg">⚠ ${err.message}</div>`;
+    showErr(err.message);
   }finally{
-    submitBtn.disabled = false;
+    $('loginSubmit').disabled = false;
   }
 }
 
-function doLogout(expired){
-  endSession();
-  showScreen('customer');
-  if(expired){
-    document.getElementById('errorCustomer').innerHTML = `<div class="error-msg">⚠ ${t('sessionExpired')}</div>`;
-  }
-}
-
-/* ---------------- Step 3: dashboard ---------------- */
-async function enterDashboard(){
-  showScreen('dashboard');
-  document.getElementById('brandDot').style.background = state.customer.accent || '#2F6F5E';
-  document.getElementById('brandName').textContent = state.customer.name;
-  document.getElementById('roleBadge').textContent = t('role_' + state.session.role) || state.session.role;
-
-  const isAdmin = state.session.role === 'admin' || state.session.role === 'superadmin';
-  document.getElementById('adminTools').classList.toggle('hidden', !isAdmin);
-
-  const years = state.customer.years && state.customer.years.length ? state.customer.years : [String(new Date().getFullYear())];
-  const yearSelect = document.getElementById('yearSelect');
-  yearSelect.innerHTML = years.map(y=>`<option value="${y}">${y}</option>`).join('');
-  state.year = years[0];
-  yearSelect.value = state.year;
-
-  await loadYearData();
-}
-
-async function onYearChange(e){
-  state.year = e.target.value;
-  await loadYearData();
-}
-
-async function loadYearData(){
+/* ---------------- Data ---------------- */
+async function loadYear(){
+  $('loadError').innerHTML = '';
   try{
-    state.yearData = await fetchJSON(`${state.customer.id}-${state.year}.json`);
-  }catch(err){
-    state.yearData = {title: `Årshjul ${state.year}`, activities: []};
+    state.data = await fetchJSON(`${state.customer.id}-${state.year}.json`);
+  }catch{
+    state.data = {title:`${state.customer.shortName||state.customer.name} Årshjul ${state.year}`, activities:[]};
   }
-  renderDashboard();
+  state.data.activities = state.data.activities || [];
+  state.openMonth = null;
+  state.editingId = null;
+  renderAll();
 }
 
-function renderDashboard(){
-  document.getElementById('wheelTitle').textContent = state.yearData.title || `Årshjul ${state.year}`;
-  document.getElementById('wheelMeta').textContent = `${state.customer.name} · ${state.year}`;
-  document.getElementById('footerNote').textContent = t('updatedNow');
+/* ---------------- Rendering ---------------- */
+function renderAll(){
+  const admin = isAdmin();
+  const name = state.customer.shortName || state.customer.name;
+  $('pageTitle').textContent = `📅 ${name} Årshjul ${state.year}`;
+  $('roleBadge').textContent = admin ? 'Admin' : 'v5.0';
+  $('loginBtn').classList.toggle('hidden', !!state.session);
+  $('logoutBtn').classList.toggle('hidden', !state.session);
+  $('adminPanel').classList.toggle('hidden', !admin);
+  $('subtitle').textContent = admin
+    ? 'Klik på en måned eller aktivitet for at se detaljer'
+    : '💡 Klik på en måned for at se dens aktiviteter';
+  $('footerNote').textContent = state.customer.name;
   renderWheel();
-  renderMonthGroups();
+  renderDetails();
+  if(admin){ renderActivityList(); updateDatePreview(); }
 }
 
-/* ---------------- Wheel (SVG) ---------------- */
-function hexToHsl(hex){
-  hex = hex.replace('#','');
-  if(hex.length===3) hex = hex.split('').map(c=>c+c).join('');
-  const r = parseInt(hex.substr(0,2),16)/255, g = parseInt(hex.substr(2,2),16)/255, b = parseInt(hex.substr(4,2),16)/255;
-  const max=Math.max(r,g,b), min=Math.min(r,g,b);
-  let h,s,l=(max+min)/2;
-  if(max===min){ h=s=0; }
-  else{
-    const d = max-min;
-    s = l>0.5 ? d/(2-max-min) : d/(max+min);
-    switch(max){
-      case r: h=(g-b)/d+(g<b?6:0); break;
-      case g: h=(b-r)/d+2; break;
-      case b: h=(r-g)/d+4; break;
+function buildChartData(){
+  const monthLabels = [], monthData = [], monthColors = [];
+  const actData = [], actColors = [], actInfo = [];
+  MONTHS.forEach(m=>{
+    const list = state.data.activities.filter(a=>a.month===m);
+    monthLabels.push(MONTH_NAME[m].toUpperCase().slice(0,3));
+    monthData.push(list.length || 1);
+    monthColors.push(MONTH_COLOR[m]);
+    if(list.length){
+      list.forEach(a=>{ actData.push(1); actColors.push(MONTH_COLOR[m]); actInfo.push({month:m, activity:a}); });
+    }else{
+      actData.push(1); actColors.push(MONTH_COLOR[m]); actInfo.push({month:m, activity:null});
     }
-    h/=6;
-  }
-  return {h:h*360, s:s*100, l:l*100};
-}
-function hslToHex(h,s,l){
-  s/=100; l/=100;
-  const k = n => (n + h/30) % 12;
-  const a = s * Math.min(l, 1-l);
-  const f = n => l - a * Math.max(-1, Math.min(k(n)-3, Math.min(9-k(n), 1)));
-  const toHex = x => Math.round(255*x).toString(16).padStart(2,'0');
-  return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
-}
-function monthPalette(accentHex){
-  const {h,s} = hexToHsl(accentHex || '#2F6F5E');
-  return MONTHS.map((_,i)=>{
-    const hue = (h + (i-5.5)*4 + 360) % 360;
-    const light = 34 + (i%2===0 ? 0 : 8);
-    return hslToHex(hue, Math.max(28,Math.min(s,55)), light);
   });
+  return {monthLabels, monthData, monthColors, actData, actColors, actInfo};
 }
-function polar(cx,cy,r,angleDeg){
-  const a = (angleDeg-90) * Math.PI/180;
-  return {x: cx + r*Math.cos(a), y: cy + r*Math.sin(a)};
-}
-function wedgePath(cx,cy,rOuter,rInner,startAngle,endAngle){
-  const p1 = polar(cx,cy,rOuter,startAngle);
-  const p2 = polar(cx,cy,rOuter,endAngle);
-  const p3 = polar(cx,cy,rInner,endAngle);
-  const p4 = polar(cx,cy,rInner,startAngle);
-  const large = endAngle-startAngle > 180 ? 1 : 0;
-  return `M ${p1.x} ${p1.y} A ${rOuter} ${rOuter} 0 ${large} 1 ${p2.x} ${p2.y} L ${p3.x} ${p3.y} A ${rInner} ${rInner} 0 ${large} 0 ${p4.x} ${p4.y} Z`;
-}
+
 function renderWheel(){
-  const svg = document.getElementById('wheelSvg');
-  const cx=230, cy=230, rOuter=200, rInner=64;
-  const palette = monthPalette(state.customer.accent);
-  const counts = {};
-  MONTHS.forEach(m=>counts[m]=0);
-  (state.yearData.activities||[]).forEach(a=>{ if(counts[a.month]!==undefined) counts[a.month]++; });
-
-  let svgParts = [];
-  MONTHS.forEach((m,i)=>{
-    const start = i*30, end = (i+1)*30;
-    const mid = (start+end)/2;
-    const path = wedgePath(cx,cy,rOuter,rInner,start,end);
-    svgParts.push(`<path d="${path}" fill="${palette[i]}" stroke="#fff" stroke-width="2" data-month="${m}" style="cursor:pointer"></path>`);
-    const labelPos = polar(cx,cy,(rOuter+rInner)/2 + 8, mid);
-    svgParts.push(`<text x="${labelPos.x}" y="${labelPos.y}" fill="#fff" font-family="Space Grotesk, sans-serif" font-weight="600" font-size="12" text-anchor="middle" dominant-baseline="middle" style="pointer-events:none;text-transform:uppercase;letter-spacing:.03em">${MONTH_LABEL[state.lang][m].slice(0,3)}</text>`);
-    if(counts[m]>0){
-      const badgePos = polar(cx,cy,rOuter+16, mid);
-      svgParts.push(`<circle cx="${badgePos.x}" cy="${badgePos.y}" r="10" fill="${palette[i]}"></circle>`);
-      svgParts.push(`<text x="${badgePos.x}" y="${badgePos.y}" fill="#fff" font-size="10" font-weight="700" text-anchor="middle" dominant-baseline="middle" style="pointer-events:none">${counts[m]}</text>`);
-    }
-  });
-  svgParts.push(`<circle cx="${cx}" cy="${cy}" r="${rInner-6}" fill="#fff"></circle>`);
-  svgParts.push(`<text x="${cx}" y="${cy-6}" text-anchor="middle" font-family="Space Grotesk, sans-serif" font-weight="700" font-size="15" fill="#1B2430">${state.year}</text>`);
-  svgParts.push(`<text x="${cx}" y="${cy+14}" text-anchor="middle" font-family="Inter, sans-serif" font-size="10" fill="#5B6672">${escapeHtml(state.customer.shortName || state.customer.name)}</text>`);
-
-  svg.innerHTML = svgParts.join('');
-  svg.querySelectorAll('path[data-month]').forEach(p=>{
-    p.addEventListener('click', ()=>{
-      const details = document.getElementById('month-'+p.dataset.month);
-      if(details){ details.open = true; details.scrollIntoView({behavior:'smooth', block:'center'}); }
-    });
-  });
-}
-
-/* ---------------- Activity list ---------------- */
-function escapeHtml(str){
-  return String(str??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-function escapeAttr(str){ return escapeHtml(str); }
-
-function renderMonthGroups(){
-  const isAdmin = state.session.role === 'admin' || state.session.role === 'superadmin';
-  const wrap = document.getElementById('monthGroups');
-  wrap.innerHTML = '';
-  const palette = monthPalette(state.customer.accent);
-
-  MONTHS.forEach((m,i)=>{
-    const items = (state.yearData.activities||[]).filter(a=>a.month===m);
-    const details = document.createElement('details');
-    details.className = 'month-group';
-    details.id = 'month-'+m;
-    const summary = document.createElement('summary');
-    summary.innerHTML = `<span class="m-dot" style="background:${palette[i]}"></span><span></span>`;
-    summary.querySelector('span:last-child').textContent = MONTH_LABEL[state.lang][m];
-    details.appendChild(summary);
-
-    if(items.length===0){
-      const empty = document.createElement('div');
-      empty.className = 'empty-state';
-      empty.textContent = t('noActivities');
-      details.appendChild(empty);
-    }else{
-      items.forEach(a=>{
-        details.appendChild(renderActivityRow(a, isAdmin));
-      });
-    }
-
-    if(isAdmin){
-      const addBtn = document.createElement('button');
-      addBtn.className = 'btn small add-row';
-      addBtn.textContent = t('addActivity');
-      addBtn.addEventListener('click', ()=>openActivityModal(null, m));
-      details.appendChild(addBtn);
-    }
-
-    wrap.appendChild(details);
-  });
-}
-
-function renderActivityRow(a, isAdmin){
-  const row = document.createElement('div');
-  row.className = 'activity-row';
-  const main = document.createElement('div');
-  main.className = 'a-main';
-  const name = document.createElement('div');
-  name.className = 'a-name';
-  name.textContent = a.name;
-  main.appendChild(name);
-  const metaParts = [];
-  if(a.date) metaParts.push(`${a.date}/${state.year}`);
-  if(a.responsible) metaParts.push(a.responsible);
-  if(a.notes) metaParts.push(a.notes);
-  if(metaParts.length){
-    const meta = document.createElement('div');
-    meta.className = 'a-meta';
-    meta.textContent = metaParts.join(' · ');
-    main.appendChild(meta);
+  if(typeof Chart === 'undefined'){
+    $('loadError').replaceChildren(el('div', {className:'error', textContent:'Kunne ikke indlæse Chart.js (tjek internetforbindelsen).'}));
+    return;
   }
-  row.appendChild(main);
-
-  const actions = document.createElement('div');
-  actions.className = 'a-actions';
-  if(a.date){
-    const icsBtn = document.createElement('button');
-    icsBtn.className = 'btn small';
-    icsBtn.textContent = '📅';
-    icsBtn.title = t('calendar');
-    icsBtn.addEventListener('click', ()=>downloadICS(a));
-    actions.appendChild(icsBtn);
-  }
-  if(isAdmin){
-    const editBtn = document.createElement('button');
-    editBtn.className = 'btn small';
-    editBtn.textContent = '✎';
-    editBtn.title = t('edit');
-    editBtn.addEventListener('click', ()=>openActivityModal(a, a.month));
-    actions.appendChild(editBtn);
-
-    const delBtn = document.createElement('button');
-    delBtn.className = 'btn small danger';
-    delBtn.textContent = '✕';
-    delBtn.title = t('delete');
-    delBtn.addEventListener('click', ()=>{
-      if(confirm(t('confirmDelete'))){
-        state.yearData.activities = state.yearData.activities.filter(x=>x.id!==a.id);
-        renderDashboard();
+  if(Chart.registry && !Chart.registry.plugins.get('datalabels') && window.ChartDataLabels) Chart.register(ChartDataLabels);
+  const d = buildChartData();
+  if(state.chart) state.chart.destroy();
+  state.chart = new Chart($('wheel').getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: d.monthLabels,
+      datasets: [
+        {
+          label:'Aktiviteter', data:d.actData, backgroundColor:d.actColors, borderWidth:1, borderColor:'#fff', weight:2,
+          datalabels:{
+            color:'#fff', font:{size:8},
+            formatter:(v,ctx)=>{
+              const a = d.actInfo[ctx.dataIndex].activity;
+              if(!a) return '';
+              return a.name.length>12 ? a.name.slice(0,10)+'..' : a.name;
+            }
+          }
+        },
+        {
+          label:'Måneder', data:d.monthData, backgroundColor:d.monthColors, borderWidth:2, borderColor:'#fff', weight:1,
+          datalabels:{color:'#fff', font:{weight:'bold', size:14}, formatter:(v,ctx)=>ctx.chart.data.labels[ctx.dataIndex]}
+        }
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:true,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{
+          title:()=>'',
+          label:ctx=>{
+            if(ctx.datasetIndex===1){
+              const m = MONTHS[ctx.dataIndex];
+              const n = state.data.activities.filter(a=>a.month===m).length;
+              return `${MONTH_NAME[m]}: ${n} aktivitet${n!==1?'er':''}`;
+            }
+            const info = d.actInfo[ctx.dataIndex];
+            if(!info.activity) return '';
+            const a = info.activity;
+            return a.date ? `${MONTH_NAME[info.month]}: ${a.name} (${a.date})` : `${MONTH_NAME[info.month]}: ${a.name}`;
+          }
+        }}
+      },
+      onClick:(evt, elements)=>{
+        if(!elements.length) return;
+        const {datasetIndex, index} = elements[0];
+        state.openMonth = datasetIndex===1 ? MONTHS[index] : d.actInfo[index].month;
+        renderDetails();
+        $('monthDetails').scrollIntoView({behavior:'smooth', block:'nearest'});
       }
-    });
-    actions.appendChild(delBtn);
+    }
+  });
+}
+
+function renderDetails(){
+  const box = $('monthDetails');
+  const m = state.openMonth;
+  if(!m){ box.classList.add('hidden'); return; }
+  $('detailsMonthName').textContent = MONTH_NAME[m];
+  $('detailsMonthName').style.color = MONTH_COLOR[m];
+  const list = $('detailsList');
+  list.replaceChildren();
+  const items = state.data.activities.filter(a=>a.month===m);
+  if(!items.length){
+    list.append(el('p', {textContent:'Ingen aktiviteter for denne måned', style:'text-align:center;color:#666'}));
   }
-  row.appendChild(actions);
-  return row;
-}
-
-/* ---------------- Modals ---------------- */
-function closeModal(){
-  document.getElementById('modalRoot').innerHTML = '';
-}
-function openModal(html){
-  document.getElementById('modalRoot').innerHTML = `<div class="modal-overlay" id="modalOverlay"><div class="modal">${html}</div></div>`;
-  document.getElementById('modalOverlay').addEventListener('click', e=>{
-    if(e.target.id === 'modalOverlay') closeModal();
-  });
-}
-
-function openActivityModal(activity, defaultMonth){
-  const isNew = !activity;
-  const monthOptions = MONTHS.map(m=>`<option value="${m}" ${m===defaultMonth?'selected':''}>${MONTH_LABEL[state.lang][m]}</option>`).join('');
-  openModal(`
-    <h2>${isNew ? t('newActivityTitle') : t('editActivityTitle')}</h2>
-    <div class="field"><label>${t('selectMonth')}</label>
-      <select class="select" id="fMonth" style="width:100%">${monthOptions}</select></div>
-    <div class="field"><label>${t('name')}</label><input id="fName" type="text" value="${escapeAttr(activity?.name||'')}"></div>
-    <div class="field"><label>${t('date')}</label><input id="fDate" type="text" placeholder="19" value="${escapeAttr((activity?.date||'').split('/')[0]||'')}"></div>
-    <div class="field"><label>${t('responsible')}</label><input id="fResp" type="text" value="${escapeAttr(activity?.responsible||'')}"></div>
-    <div class="field"><label>${t('notes')}</label><input id="fNotes" type="text" value="${escapeAttr(activity?.notes||'')}"></div>
-    <div class="modal-actions">
-      <button class="btn" id="cancelActivity">${t('cancel')}</button>
-      <button class="btn primary" id="saveActivity">${t('save')}</button>
-    </div>
-  `);
-  document.getElementById('cancelActivity').addEventListener('click', closeModal);
-  document.getElementById('saveActivity').addEventListener('click', ()=>{
-    const month = document.getElementById('fMonth').value;
-    const name = document.getElementById('fName').value.trim();
-    const day = document.getElementById('fDate').value.trim();
-    const responsible = document.getElementById('fResp').value.trim();
-    const notes = document.getElementById('fNotes').value.trim();
-    if(!name) return;
-    const monthNum = MONTHS.indexOf(month)+1;
-    const date = day ? `${parseInt(day,10)}/${monthNum}` : '';
-    if(isNew){
-      state.yearData.activities = state.yearData.activities || [];
-      state.yearData.activities.push({id:'a'+Date.now(), month, name, date, responsible, notes});
-    }else{
-      Object.assign(activity, {month, name, date, responsible, notes});
+  items.forEach(a=>{
+    const h = el('h4', {}, el('span', {textContent:a.name}));
+    if(a.date){
+      h.append(el('button', {className:'btn-calendar', textContent:'📅 Hent kalender', onclick:()=>downloadICS(a)}));
     }
-    closeModal();
-    renderDashboard();
+    const meta = [];
+    if(a.date) meta.push(`📅 Dato: ${a.date}`);
+    if(a.responsible) meta.push(`👤 Ansvarlig: ${a.responsible}`);
+    if(a.notes) meta.push(`💬 Bemærkninger: ${a.notes}`);
+    const item = el('div', {className:'detail-item'}, h, el('div', {className:'detail-meta', textContent:meta.join('\n')}));
+    item.style.borderLeftColor = MONTH_COLOR[m];
+    list.append(item);
+  });
+  box.classList.remove('hidden');
+}
+
+/* ---------------- Admin: redigering ---------------- */
+function updateDatePreview(){
+  const day = $('fDay').value, m = $('fMonth').value;
+  const p = $('datePreview');
+  p.textContent = day ? `${day}/${MONTHS.indexOf(m)+1}` : '--/--';
+  p.style.color = day ? MONTH_COLOR[m] : '#666';
+}
+function renderActivityList(){
+  const list = $('activityList');
+  list.replaceChildren();
+  if(!state.data.activities.length){
+    list.append(el('p', {textContent:'Ingen aktiviteter endnu', style:'text-align:center;color:#666'}));
+    return;
+  }
+  MONTHS.forEach(m=>{
+    const items = state.data.activities.filter(a=>a.month===m);
+    if(!items.length) return;
+    list.append(el('h4', {textContent:MONTH_NAME[m], style:`color:${MONTH_COLOR[m]};margin:20px 0 10px`}));
+    items.forEach(a=>{
+      const meta = [];
+      if(a.date) meta.push(`📅 ${a.date}`);
+      if(a.responsible) meta.push(`👤 ${a.responsible}`);
+      if(a.notes) meta.push(`💬 ${a.notes}`);
+      const info = el('div', {style:'flex:1'}, el('strong', {textContent:a.name}));
+      if(meta.length) info.append(el('div', {className:'activity-meta', textContent:meta.join(' | ')}));
+      const btns = el('div', {className:'activity-buttons'},
+        el('button', {className:'btn-small btn-success', textContent:'✏️ Rediger', onclick:()=>startEdit(a.id)}),
+        el('button', {className:'btn-small btn-danger', textContent:'🗑️ Slet', onclick:()=>deleteActivity(a.id)}));
+      const row = el('div', {className:'activity-item'}, info, btns);
+      row.style.borderLeftColor = MONTH_COLOR[m];
+      list.append(row);
+    });
   });
 }
-
-function openUsersModal(){
-  openModal(`
-    <h2>${t('usersTitle')}</h2>
-    <p style="color:var(--ink-soft);font-size:.85rem;line-height:1.5;margin-bottom:16px;">${t('usersHint')}</p>
-    <div class="modal-actions"><button class="btn primary" id="closeUsers">${t('close')}</button></div>
-  `);
-  document.getElementById('closeUsers').addEventListener('click', closeModal);
+function flash(msg){
+  const box = $('successMessage');
+  box.textContent = msg;
+  box.classList.remove('hidden');
+  setTimeout(()=>box.classList.add('hidden'), 4000);
+}
+function clearForm(){
+  $('fMonth').value = 'jan'; $('fName').value = ''; $('fDay').value = '';
+  $('fResp').value = ''; $('fNotes').value = '';
+  state.editingId = null;
+  $('addBtn').classList.remove('hidden');
+  $('updateBtn').classList.add('hidden');
+  $('cancelBtn').classList.add('hidden');
+  updateDatePreview();
+}
+function readForm(){
+  const month = $('fMonth').value;
+  const name = $('fName').value.trim();
+  if(!name){ alert('Aktivitetsnavn er påkrævet.'); return null; }
+  const day = parseInt($('fDay').value, 10);
+  const date = day ? `${day}/${MONTHS.indexOf(month)+1}` : '';
+  return {month, name, date, responsible:$('fResp').value.trim(), notes:$('fNotes').value.trim()};
+}
+function addActivity(){
+  const a = readForm(); if(!a) return;
+  a.id = 'a' + Date.now();
+  state.data.activities.push(a);
+  clearForm(); renderAll(); flash('✅ Aktivitet tilføjet');
+}
+function startEdit(id){
+  const a = state.data.activities.find(x=>x.id===id); if(!a) return;
+  state.editingId = id;
+  $('fMonth').value = a.month; $('fName').value = a.name;
+  $('fDay').value = (a.date||'').split('/')[0] || '';
+  $('fResp').value = a.responsible||''; $('fNotes').value = a.notes||'';
+  $('addBtn').classList.add('hidden');
+  $('updateBtn').classList.remove('hidden');
+  $('cancelBtn').classList.remove('hidden');
+  updateDatePreview();
+  $('adminPanel').scrollIntoView({behavior:'smooth'});
+}
+function updateActivity(){
+  const a = readForm(); if(!a) return;
+  const cur = state.data.activities.find(x=>x.id===state.editingId); if(!cur) return;
+  Object.assign(cur, a);
+  clearForm(); renderAll(); flash('✅ Aktivitet opdateret');
+}
+function deleteActivity(id){
+  if(!confirm('Slet denne aktivitet?')) return;
+  state.data.activities = state.data.activities.filter(x=>x.id!==id);
+  renderAll(); flash('✅ Aktivitet slettet');
 }
 
-function openYearsModal(){
-  openModal(`
-    <h2>${t('yearsTitle')}</h2>
-    <p style="color:var(--ink-soft);font-size:.85rem;line-height:1.5;margin-bottom:16px;">${t('yearsHint')}</p>
-    <div class="field"><label>${t('selectMonth')==='' ? '' : ''}Årstal</label><input id="fYear" type="text" placeholder="2027"></div>
-    <div class="modal-actions">
-      <button class="btn" id="cancelYear">${t('cancel')}</button>
-      <button class="btn primary" id="createYear">${t('addYear')}</button>
-    </div>
-  `);
-  document.getElementById('cancelYear').addEventListener('click', closeModal);
-  document.getElementById('createYear').addEventListener('click', async ()=>{
-    const year = document.getElementById('fYear').value.trim();
-    if(!/^\d{4}$/.test(year)) return;
-    const blank = {title: `Årshjul ${year}`, activities: []};
-    const filename = `${state.customer.id}-${year}.json`;
-    const saved1 = await downloadJSON(blank, filename);
-    if(!saved1) return; // brugeren annullerede gem-dialogen
-    if(!state.customer.years.includes(year)) state.customer.years.push(year);
-    const updatedCustomers = {customers: state.customers};
-    await downloadJSON(updatedCustomers, 'customers.json');
-    closeModal();
-    if(!window.showSaveFilePicker){
-      alert(state.lang==='da'
-        ? `Upload "${filename}" og den nye "customers.json" til roden af repoet (samme mappe som index.html) på serveren.`
-        : `Upload "${filename}" and the new "customers.json" to the root of the repo (same folder as index.html) on the server.`);
-    }
-  });
-}
-
-/* ---------------- Export helpers ---------------- */
+/* ---------------- Filer ---------------- */
 async function downloadJSON(obj, filename){
-  const jsonStr = JSON.stringify(obj, null, 2);
-
-  // Chrome/Edge: åbn en rigtig "Gem som"-dialog, så filen kan gemmes direkte
-  // i det rigtige repo/mappe i stedet for altid at havne i Downloads.
+  const json = JSON.stringify(obj, null, 2);
   if(window.showSaveFilePicker){
     try{
-      const handle = await window.showSaveFilePicker({
-        suggestedName: filename,
-        types: [{ description: 'JSON', accept: {'application/json': ['.json']} }]
-      });
-      const writable = await handle.createWritable();
-      await writable.write(jsonStr);
-      await writable.close();
+      const handle = await window.showSaveFilePicker({suggestedName:filename, types:[{description:'JSON', accept:{'application/json':['.json']}}]});
+      const w = await handle.createWritable();
+      await w.write(json); await w.close();
       return true;
     }catch(err){
-      if(err && err.name === 'AbortError') return false; // brugeren fortrød/annullerede dialogen
-      // Andre fejl: fald tilbage til almindelig download herunder
+      if(err && err.name==='AbortError') return false;
     }
   }
-
-  // Fallback (Firefox/Safari, eller hvis dialogen fejlede): almindelig download til Downloads-mappen
-  const blob = new Blob([jsonStr], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(url);
+  const a = el('a', {href:URL.createObjectURL(new Blob([json], {type:'application/json'})), download:filename});
+  document.body.append(a); a.click(); a.remove();
+  URL.revokeObjectURL(a.href);
   return true;
 }
-async function exportCurrentYearJSON(){
-  await downloadJSON(state.yearData, `${state.customer.id}-${state.year}.json`);
+async function saveYear(){
+  if(await downloadJSON(state.data, `${state.customer.id}-${state.year}.json`)) flash('✅ Filen er gemt – kør publicer.bat for at udgive');
 }
-function downloadICS(activity){
-  const [day, month] = (activity.date||'').split('/').map(n=>parseInt(n,10));
+async function addYear(){
+  const year = (prompt('Hvilket årstal vil du tilføje?') || '').trim();
+  if(!/^\d{4}$/.test(year)) return;
+  if(state.customer.years.includes(year)){ alert('Året findes allerede.'); return; }
+  const blank = {title:`${state.customer.shortName||state.customer.name} Årshjul ${year}`, activities:[]};
+  if(!await downloadJSON(blank, `${state.customer.id}-${year}.json`)) return;
+  state.customer.years.push(year);
+  state.customer.years.sort();
+  await downloadJSON({customers:state.customers}, 'customers.json');
+  fillYearSelect();
+  alert('Gem begge filer i repo-mappen og kør publicer.bat.');
+}
+function downloadICS(a){
+  const [day, month] = (a.date||'').split('/').map(n=>parseInt(n,10));
   if(!day || !month) return;
-  const year = parseInt(state.year,10);
-  const dt = new Date(Date.UTC(year, month-1, day, 9, 0, 0));
-  const dtEnd = new Date(dt.getTime() + 60*60*1000);
-  const fmt = d => d.toISOString().replace(/[-:]/g,'').split('.')[0]+'Z';
+  const pad = n => String(n).padStart(2,'0');
+  const d = `${state.year}${pad(month)}${pad(day)}`;
+  const esc = s => String(s||'').replace(/[\\,;]/g, c=>'\\'+c).replace(/\n/g,'\\n');
   const ics = [
-    'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Aarshjul//DA',
-    'BEGIN:VEVENT',
-    `UID:${activity.id}@aarshjul`,
-    `DTSTAMP:${fmt(new Date())}`,
-    `DTSTART:${fmt(dt)}`,
-    `DTEND:${fmt(dtEnd)}`,
-    `SUMMARY:${icsEscape(activity.name)}`,
-    `DESCRIPTION:${icsEscape([activity.responsible, activity.notes].filter(Boolean).join(' - '))}`,
-    `LOCATION:${icsEscape(state.customer.name)}`,
-    'END:VEVENT','END:VCALENDAR'
+    'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//HCS//Aarshjul//DA','CALSCALE:GREGORIAN','METHOD:PUBLISH','BEGIN:VEVENT',
+    `DTSTART;VALUE=DATE:${d}`, `SUMMARY:${esc(a.name)}`,
+    `DESCRIPTION:${esc([a.notes, a.responsible && 'Ansvarlig: '+a.responsible].filter(Boolean).join('\n') || 'HCS aktivitet')}`,
+    `LOCATION:${esc(state.customer.name)}`, 'STATUS:CONFIRMED', `UID:${d}-${a.id}@hcs-aarshjul`,
+    `DTSTAMP:${new Date().toISOString().replace(/[-:]/g,'').split('.')[0]}Z`, 'END:VEVENT','END:VCALENDAR'
   ].join('\r\n');
-  const blob = new Blob([ics], {type:'text/calendar'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = `${activity.name.replace(/[^a-z0-9]+/gi,'_')}.ics`;
-  document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(url);
+  const link = el('a', {href:URL.createObjectURL(new Blob([ics], {type:'text/calendar;charset=utf-8'})), download:`${a.name.replace(/[^a-zæøå0-9]+/gi,'_')}_${d}.ics`});
+  document.body.append(link); link.click(); link.remove();
+  URL.revokeObjectURL(link.href);
 }
-function icsEscape(str){ return String(str||'').replace(/[\\,;]/g, m=>'\\'+m).replace(/\n/g,'\\n'); }
+
+/* ---------------- Init ---------------- */
+function fillYearSelect(){
+  const years = state.customer.years && state.customer.years.length ? state.customer.years : [String(new Date().getFullYear())];
+  $('yearSelect').replaceChildren(...years.map(y=>el('option', {value:y, textContent:y})));
+  if(!years.includes(state.year)) state.year = years.includes(String(new Date().getFullYear())) ? String(new Date().getFullYear()) : years[0];
+  $('yearSelect').value = state.year;
+}
+
+async function init(){
+  $('loginBtn').addEventListener('click', showLogin);
+  $('loginCancel').addEventListener('click', hideLogin);
+  $('loginForm').addEventListener('submit', onLogin);
+  $('logoutBtn').addEventListener('click', ()=>{ endSession(); renderAll(); });
+  $('closeDetails').addEventListener('click', ()=>{ state.openMonth = null; renderDetails(); });
+  $('yearSelect').addEventListener('change', e=>{ state.year = e.target.value; loadYear(); });
+  $('fMonth').replaceChildren(...MONTHS.map(m=>el('option', {value:m, textContent:MONTH_NAME[m]})));
+  $('fMonth').addEventListener('change', updateDatePreview);
+  $('fDay').addEventListener('input', updateDatePreview);
+  $('addBtn').addEventListener('click', addActivity);
+  $('updateBtn').addEventListener('click', updateActivity);
+  $('cancelBtn').addEventListener('click', clearForm);
+  $('saveJsonBtn').addEventListener('click', saveYear);
+  $('addYearBtn').addEventListener('click', addYear);
+
+  try{
+    state.customers = (await fetchJSON('customers.json')).customers || [];
+  }catch{
+    $('loadError').replaceChildren(el('div', {className:'error', textContent:'Kunne ikke indlæse customers.json. Siden skal køres via en webserver.'}));
+    return;
+  }
+  const wanted = new URLSearchParams(location.search).get('kunde');
+  state.customer = state.customers.find(c=>c.id===wanted) || state.customers[0];
+  if(!state.customer) return;
+  fillYearSelect();
+
+  const s = loadSession();
+  if(s && s.customerId === state.customer.id) state.session = s;
+  await loadYear();
+}
+document.addEventListener('DOMContentLoaded', init);

@@ -33,9 +33,9 @@ Three demo users are included for testing:
 
 | Customer | Username | Password | Role |
 |---|---|---|---|
-| Holbæk Cykelsport | `formand` | `hcs2026admin` | Admin (can edit) |
-| Holbæk Cykelsport | `medlem` | `hcs2026` | Viewer (read-only) |
-| (global) | `soren` | `ChangeMe!2026` | Super admin (all customers) |
+| Holbæk Cykelsport | `formand` | *(fjernet – opret egne med hash-generator.html)* | Admin (can edit) |
+| Holbæk Cykelsport | `medlem` | *(fjernet)* | Viewer (read-only) |
+| (global) | `soren` | *(fjernet)* | Super admin (all customers) |
 
 **Change these passwords before production use** – see the user management section below.
 

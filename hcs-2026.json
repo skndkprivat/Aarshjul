@@ -1,14 +1,221 @@
 {
   "title": "HCS Årshjul 2026",
   "activities": [
-    { "id": "a1", "month": "jan", "name": "Opkrævning af kontingent", "date": "", "responsible": "", "notes": "" },
-    { "id": "a2", "month": "jan", "name": "Børneattester", "date": "", "responsible": "", "notes": "" },
-    { "id": "a3", "month": "jan", "name": "Hjemmeside opdateres", "date": "", "responsible": "", "notes": "" },
-    { "id": "a4", "month": "feb", "name": "Tøjbestilling", "date": "", "responsible": "", "notes": "" },
-    { "id": "a5", "month": "feb", "name": "Regnskab afsluttes", "date": "", "responsible": "", "notes": "" },
-    { "id": "a6", "month": "feb", "name": "Generalforsamling", "date": "19/2", "responsible": "", "notes": "" },
-    { "id": "a7", "month": "mar", "name": "Hjælperaften", "date": "", "responsible": "", "notes": "" },
-    { "id": "a8", "month": "mar", "name": "Førstehjælpskursus", "date": "", "responsible": "", "notes": "" },
-    { "id": "a9", "month": "mar", "name": "Sæsonstart", "date": "", "responsible": "", "notes": "" }
+    {
+      "month": "jan",
+      "name": "Opkrævning sponsoraftaler",
+      "date": "1/1",
+      "responsible": "Steen",
+      "notes": "Sponsor udvalget laver kontrakterne og informere kasseren hvornår de må opkræves",
+      "id": "a1"
+    },
+    {
+      "month": "jan",
+      "name": "Børneattester",
+      "date": "1/1",
+      "responsible": "Steen og Heidi",
+      "notes": "Alle voksne der skal have med unge skal have en og skal opdateres på medlemmet",
+      "id": "a2"
+    },
+    {
+      "month": "jan",
+      "name": "Hjemmeside og FB",
+      "date": "1/1",
+      "responsible": "Carsten og Søren",
+      "notes": "Ansvarlig for tekst mv.",
+      "id": "a3"
+    },
+    {
+      "month": "jan",
+      "name": "Julefrokost for kaptajner",
+      "date": "21/1",
+      "responsible": "Steen",
+      "notes": "",
+      "id": "a4"
+    },
+    {
+      "month": "feb",
+      "name": "Fordrag med Bo Belhage",
+      "date": "4/2",
+      "responsible": "Steen",
+      "notes": "",
+      "id": "a5"
+    },
+    {
+      "month": "feb",
+      "name": "Regnskab",
+      "date": "15/2",
+      "responsible": "Simon",
+      "notes": "Skal revideres inden Generalforsamling.",
+      "id": "a6"
+    },
+    {
+      "month": "feb",
+      "name": "Fordrag med Henrik Egholm",
+      "date": "18/2",
+      "responsible": "Steen",
+      "notes": "",
+      "id": "a7"
+    },
+    {
+      "month": "feb",
+      "name": "Generalforsamling",
+      "date": "25/2",
+      "responsible": "Bestyrelsen",
+      "notes": "",
+      "id": "a8"
+    },
+    {
+      "month": "mar",
+      "name": "Hjælper aften portvin smagning",
+      "date": "19/3",
+      "responsible": "Steen",
+      "notes": "",
+      "id": "a9"
+    },
+    {
+      "month": "mar",
+      "name": "Førstehjælp børn 9-14 år",
+      "date": "21/3",
+      "responsible": "Heidi",
+      "notes": "",
+      "id": "a10"
+    },
+    {
+      "month": "mar",
+      "name": "Førstehjælp for Kaptajner, Træner og hjælper.",
+      "date": "22/3",
+      "responsible": "Heidi",
+      "notes": "",
+      "id": "a11"
+    },
+    {
+      "month": "mar",
+      "name": "Kaptajn kursus DGI",
+      "date": "28/3",
+      "responsible": "Steen",
+      "notes": "Bo Wacker",
+      "id": "a12"
+    },
+    {
+      "month": "mar",
+      "name": "Sæsonstart",
+      "date": "31/3",
+      "responsible": "Motion",
+      "notes": "Opstart d. 31/3 fra Sportsbyen",
+      "id": "a13"
+    },
+    {
+      "month": "apr",
+      "name": "Medlemsregistrering DGI/DIF",
+      "date": "1/4",
+      "responsible": "Steen",
+      "notes": "",
+      "id": "a14"
+    },
+    {
+      "month": "maj",
+      "name": "DGI MTB cup",
+      "date": "9/5",
+      "responsible": "Kasper MTB",
+      "notes": "Dragerupskoven",
+      "id": "a15"
+    },
+    {
+      "month": "maj",
+      "name": "JQT Totalbyg Holdløb",
+      "date": "19/5",
+      "responsible": "Motion",
+      "notes": "Tuse Næs. Tilladelse, fra kommunen ansøgt og givet. 5 TO fra Benløse booket. \nTilmelding via DGI/ sportstiming åbnet.",
+      "id": "a16"
+    },
+    {
+      "month": "jun",
+      "name": "Enkelstart",
+      "date": "17/6",
+      "responsible": "Motion",
+      "notes": "Tuse Næs. Tilladelse, fra kommunen ansøgt og givet. 5 To.ere fra Benløse booket. Tilmelding via DGI/ sportstiming åbnet.",
+      "id": "a17"
+    },
+    {
+      "month": "jul",
+      "name": "Tøjprøvning",
+      "date": "26/7",
+      "responsible": "Heidi",
+      "notes": "",
+      "id": "a18"
+    },
+    {
+      "month": "aug",
+      "name": "Multitech Klubmesterskaber, linjeløb",
+      "date": "19/8",
+      "responsible": "Svend-Ole",
+      "notes": "19/8 i Mørkøv. Tilladelse, motion og U, rute fra kommunen ansøgt og givet. 5 To.ere fra Benløse booket. Tilmelding via DGI/ sportstiming åbnet.",
+      "id": "a19"
+    },
+    {
+      "month": "sep",
+      "name": "DCU landevejsløb Demin Cup Finalen",
+      "date": "19/9",
+      "responsible": "Heidi",
+      "notes": "",
+      "id": "a20"
+    },
+    {
+      "month": "okt",
+      "name": "Sæsonafslutning",
+      "date": "1/10",
+      "responsible": "Steen Motion",
+      "notes": "Pandekager og tale fra forperson",
+      "id": "a21"
+    },
+    {
+      "month": "okt",
+      "name": "Ryttermøde",
+      "date": "9/10",
+      "responsible": "Kasper",
+      "notes": "",
+      "id": "a22"
+    },
+    {
+      "month": "nov",
+      "name": "Tøjprøvning",
+      "date": "16/11",
+      "responsible": "Heidi",
+      "notes": "Prøvning af sommertøj",
+      "id": "a23"
+    },
+    {
+      "month": "dec",
+      "name": "DCU Årsmøde",
+      "date": "",
+      "responsible": "Heidi",
+      "notes": "Der er ikke kommet dato",
+      "id": "a24"
+    },
+    {
+      "month": "dec",
+      "name": "DCU Cykelcross",
+      "date": "12/12",
+      "responsible": "Benny",
+      "notes": "DM i cykelcross ved Sportsbyen",
+      "id": "a25"
+    },
+    {
+      "month": "dec",
+      "name": "Juleevent MTB/Gravel",
+      "date": "26/12",
+      "responsible": "Motion",
+      "notes": "Juleevent d. 26/12 kl. 09:00 i Dragerupskoven",
+      "id": "a26"
+    },
+    {
+      "month": "dec",
+      "name": "Nytårs Gravel",
+      "date": "31/12",
+      "responsible": "Steen",
+      "notes": "Året afsluttes med lidt champagne, hvor vi ønsker hinanden godt nytår.",
+      "id": "a27"
+    }
   ]
 }
