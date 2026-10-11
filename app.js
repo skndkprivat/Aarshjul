@@ -21,7 +21,8 @@ async function sha256Hex(str){
   return Array.from(new Uint8Array(digest)).map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 async function fetchJSON(path){
-  const res = await fetch(path, {cache:'no-store'});
+  // ?t= omgår CDN-cachen på GitHub Pages, så nye udgivelser ses med det samme
+  const res = await fetch(`${path}?t=${Date.now()}`, {cache:'no-store'});
   if(!res.ok) throw new Error('Kunne ikke hente ' + path);
   return res.json();
 }
@@ -365,19 +366,113 @@ async function downloadJSON(obj, filename){
   return true;
 }
 async function saveYear(){
-  if(await downloadJSON(state.data, `${state.customer.id}-${state.year}.json`)) flash('✅ Filen er gemt – kør publicer.bat for at udgive');
+  if(await downloadJSON(state.data, `${state.customer.id}-${state.year}.json`)) flash('✅ Filen er downloadet');
+}
+
+/* ---------------- Udgiv direkte til GitHub (Contents API) ---------------- */
+const GH = (()=>{
+  const m = location.hostname.match(/^([^.]+)\.github\.io$/);
+  return {
+    owner: m ? m[1] : 'skndkprivat',
+    repo: m ? (location.pathname.split('/')[1] || 'Aarshjul') : 'Aarshjul',
+    branch: 'main',
+  };
+})();
+const TOKEN_KEY = 'ghToken';
+function getToken(){
+  try{ return sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY) || ''; }catch{ return ''; }
+}
+function setToken(token, remember){
+  try{
+    sessionStorage.removeItem(TOKEN_KEY); localStorage.removeItem(TOKEN_KEY);
+    if(token) (remember ? localStorage : sessionStorage).setItem(TOKEN_KEY, token);
+  }catch{}
+}
+function askToken(){
+  return new Promise(resolve=>{
+    $('tokenError').innerHTML = '';
+    $('tokenForm').reset();
+    $('tokenOverlay').classList.remove('hidden');
+    $('tValue').focus();
+    const done = v => { $('tokenOverlay').classList.add('hidden'); cleanup(); resolve(v); };
+    const onSubmit = e => { e.preventDefault(); const t = $('tValue').value.trim(); setToken(t, $('tRemember').checked); done(t); };
+    const onClear = () => { setToken('', false); done(''); };
+    const onCancel = () => done('');
+    const cleanup = () => {
+      $('tokenForm').removeEventListener('submit', onSubmit);
+      $('tokenClear').removeEventListener('click', onClear);
+      $('tokenCancel').removeEventListener('click', onCancel);
+    };
+    $('tokenForm').addEventListener('submit', onSubmit);
+    $('tokenClear').addEventListener('click', onClear);
+    $('tokenCancel').addEventListener('click', onCancel);
+  });
+}
+function b64utf8(str){
+  const bytes = new TextEncoder().encode(str);
+  let bin = '';
+  bytes.forEach(b=>bin += String.fromCharCode(b));
+  return btoa(bin);
+}
+async function ghRequest(path, token, opts={}){
+  const res = await fetch(`https://api.github.com/repos/${GH.owner}/${GH.repo}/contents/${path}`, {
+    ...opts,
+    headers:{Authorization:`Bearer ${token}`, Accept:'application/vnd.github+json', 'X-GitHub-Api-Version':'2022-11-28', ...(opts.headers||{})},
+  });
+  return res;
+}
+async function ghPublishFile(path, obj, token, message){
+  const get = await ghRequest(`${path}?ref=${GH.branch}`, token);
+  let sha;
+  if(get.status===200) sha = (await get.json()).sha;
+  else if(get.status!==404) throw Object.assign(new Error('read'), {status:get.status});
+  const put = await ghRequest(path, token, {
+    method:'PUT',
+    body: JSON.stringify({message, content:b64utf8(JSON.stringify(obj, null, 2)+'\n'), branch:GH.branch, ...(sha?{sha}:{})}),
+  });
+  if(!put.ok) throw Object.assign(new Error('write'), {status:put.status});
+}
+function ghErrorText(err){
+  if(err.status===401) return 'Tokenet er ugyldigt eller udløbet.';
+  if(err.status===403 || err.status===404) return 'Tokenet har ikke skriveadgang til repoet (kræver Contents: Read and write).';
+  if(err.status===409 || err.status===422) return 'Filen blev ændret af en anden samtidig. Genindlæs siden og prøv igen.';
+  return 'Kunne ikke udgive: ' + (err.message || 'ukendt fejl');
+}
+async function publishFiles(files, message){
+  let token = getToken() || await askToken();
+  if(!token) return false;
+  try{
+    for(const [path, obj] of files) await ghPublishFile(path, obj, token, message);
+    return true;
+  }catch(err){
+    if(err.status===401){ setToken('', false); }
+    alert(ghErrorText(err));
+    return false;
+  }
+}
+async function publishYear(){
+  const btn = $('publishBtn');
+  btn.disabled = true;
+  try{
+    const file = `${state.customer.id}-${state.year}.json`;
+    if(await publishFiles([[file, state.data]], `Opdater ${file} via årshjul-appen`)){
+      flash('✅ Udgivet til GitHub – ændringen er synlig for alle om cirka et minut');
+    }
+  }finally{
+    btn.disabled = false;
+  }
 }
 async function addYear(){
   const year = (prompt('Hvilket årstal vil du tilføje?') || '').trim();
   if(!/^\d{4}$/.test(year)) return;
   if(state.customer.years.includes(year)){ alert('Året findes allerede.'); return; }
   const blank = {title:`${state.customer.shortName||state.customer.name} Årshjul ${year}`, activities:[]};
-  if(!await downloadJSON(blank, `${state.customer.id}-${year}.json`)) return;
-  state.customer.years.push(year);
-  state.customer.years.sort();
-  await downloadJSON({customers:state.customers}, 'customers.json');
+  const years = [...state.customer.years, year].sort();
+  const customers = state.customers.map(c=>c===state.customer ? {...c, years} : c);
+  if(!await publishFiles([[`${state.customer.id}-${year}.json`, blank], ['customers.json', {customers}]], `Tilføj år ${year}`)) return;
+  state.customer.years = years;
   fillYearSelect();
-  alert('Gem begge filer i repo-mappen og kør publicer.bat.');
+  flash(`✅ ${year} er tilføjet – vælg året i listen øverst`);
 }
 function downloadICS(a){
   const [day, month] = (a.date||'').split('/').map(n=>parseInt(n,10));
@@ -419,6 +514,8 @@ async function init(){
   $('updateBtn').addEventListener('click', updateActivity);
   $('cancelBtn').addEventListener('click', clearForm);
   $('saveJsonBtn').addEventListener('click', saveYear);
+  $('publishBtn').addEventListener('click', publishYear);
+  $('tokenBtn').addEventListener('click', askToken);
   $('addYearBtn').addEventListener('click', addYear);
 
   try{

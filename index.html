@@ -90,7 +90,7 @@
 
   <div id="adminPanel" class="admin-panel hidden">
     <h2>📝 Rediger aktiviteter</h2>
-    <div class="notice">Ændringer gemmes kun i browseren, indtil du klikker "Gem JSON-fil" og lægger filen i repoet (se publicer.bat).</div>
+    <div class="notice" id="publishNotice">Ændringer gemmes kun i browseren, indtil du klikker "Udgiv til GitHub".</div>
     <div id="successMessage" class="success-message hidden"></div>
 
     <div class="form-group"><label for="fMonth">Måned:</label><select id="fMonth"></select></div>
@@ -108,8 +108,10 @@
     <div style="margin-top:30px"><h3>Aktuelle aktiviteter</h3><div id="activityList"></div></div>
 
     <div style="margin-top:30px;display:flex;gap:10px;flex-wrap:wrap">
-      <button class="btn-success" id="saveJsonBtn">⬇️ Gem JSON-fil</button>
+      <button class="btn-success" id="publishBtn">🚀 Udgiv til GitHub</button>
       <button class="btn-secondary" id="addYearBtn">🗓️ Tilføj nyt år</button>
+      <button class="btn-secondary" id="saveJsonBtn">⬇️ Download JSON</button>
+      <button class="btn-secondary" id="tokenBtn">🔑 GitHub-token</button>
     </div>
   </div>
 
@@ -124,6 +126,19 @@
     <div class="form-group"><label for="lPass">Adgangskode:</label><input id="lPass" type="password" autocomplete="current-password" required></div>
     <button type="submit" id="loginSubmit">Log ind</button>
     <button type="button" class="btn-secondary" id="loginCancel">Annuller</button>
+  </form>
+</div>
+
+<div id="tokenOverlay" class="overlay hidden">
+  <form class="login-box" id="tokenForm">
+    <h2>🔑 GitHub-token</h2>
+    <p style="color:#666;font-size:.9em;margin-bottom:15px">Tokenet bruges kun til at gemme ændringer i repoet. Opret et "fine-grained token" kun til dette repo med rettigheden <b>Contents: Read and write</b>.</p>
+    <div id="tokenError"></div>
+    <div class="form-group"><label for="tValue">Token:</label><input id="tValue" type="password" autocomplete="off" required></div>
+    <div class="form-group"><label style="display:flex;gap:8px;align-items:center;font-weight:400"><input id="tRemember" type="checkbox" style="width:auto"> Husk på denne pc (gemmes i browseren)</label></div>
+    <button type="submit">Gem token</button>
+    <button type="button" class="btn-secondary" id="tokenClear">Fjern token</button>
+    <button type="button" class="btn-secondary" id="tokenCancel">Annuller</button>
   </form>
 </div>
 
