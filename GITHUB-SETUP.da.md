@@ -1,91 +1,94 @@
 # Opsætning på GitHub – trin for trin
 
-Denne guide viser hvordan du lægger Årshjul-løsningen på GitHub og gør den tilgængelig som en live-side via **GitHub Pages** (samme metode som du allerede bruger til Form-Tracker).
+Denne guide viser, hvordan HCS Årshjul ligger på GitHub og er tilgængelig som en live-side via **GitHub Pages**. Den kan også bruges, hvis du skal sætte det op igen fra bunden.
 
-Alle filer i løsningen ligger **fladt** (ingen undermapper) — det er bevidst, så almindelig "træk filer ind"-upload på GitHub altid virker, uden risiko for at mistede undermapper ødelægger stierne.
+Nu: repoet er `skndkprivat/Aarshjul`, og siden ligger på `https://skndkprivat.github.io/Aarshjul/`.
+
+Alle filer ligger **fladt** (ingen undermapper), så almindelig "træk filer ind"-upload på GitHub altid virker.
 
 ## ⚠️ Om synlighed (gratis = public repository)
 
 - **GitHub Pages er kun gratis fra et *public* repository.** Et privat repo med Pages kræver GitHub Pro/Team/Enterprise.
-- Det ændrer reelt intet ved sikkerheden: **den udgivne side er altid offentligt tilgængelig**, uanset repo-synlighed – kunderne skal jo netop kunne tilgå den. Et privat repo ville kun have skjult kildekoden, ikke selve JSON-filerne med de hashede adgangskoder, som browseren henter hver gang nogen logger ind.
-- **Brug derfor et public repository.** Se README.da.md under "Sikkerhed" for de fulde detaljer.
+- Det ændrer ikke noget ved sikkerheden: den udgivne side er altid offentlig. Et privat repo ville kun skjule kildekoden, ikke JSON-filerne, som browseren henter.
+- **Brug derfor et public repository.** Se README.da.md under "Sikkerhed".
 
 ## 1. Opret et nyt repository
 
-1. Gå til [github.com/new](https://github.com/new)
-2. **Repository name:** fx `aarshjul` (eller `hcs-aarshjul` hvis det kun er til HCS)
-3. Vælg **Public**
-4. Opret **uden** README/gitignore (I uploader jeres egne filer) → klik **Create repository**
+1. Gå til [github.com/new](https://github.com/new).
+2. **Repository name:** fx `Aarshjul`.
+3. Vælg **Public**.
+4. Opret **uden** README/gitignore, og klik **Create repository**.
 
 ## 2. Upload filerne
 
-### Mulighed A – via browseren (det du allerede har gjort)
+Filerne i repoet er:
 
-1. På repo-siden: klik **"uploading an existing file"** (eller **Add file → Upload files** hvis repoet allerede har indhold)
-2. Træk **alle filerne enkeltvis** ind (ikke en mappe) — altså: `index.html`, `app.js`, `hash-generator.html`, `customers.json`, `admin-users.json`, `hcs-users.json`, `hcs-2026.json`, `README.da.md`, `README.en.md`
-   - Da alt ligger fladt, er der intet mappehierarki der kan gå tabt undervejs — det var netop det, der gik galt sidst.
-3. Skriv en commit-besked, fx "Ret filstruktur til fladt layout"
-4. Klik **Commit changes**
+`index.html`, `app.js`, `hash-generator.html`, `customers.json`, `admin-users.json`, `hcs-users.json`, `hcs-2026.json` (og én fil pr. år), `publicer.bat`, `README.da.md`, `README.en.md`, `GITHUB-SETUP.da.md`, `GITHUB-SETUP.en.md`
 
-**Har du allerede en tidligere version liggende (med manglende filer)?** Upload blot de nye/rettede filer oven i – de erstatter automatisk dem med samme navn. Du behøver ikke slette repoet.
+### Mulighed A – via browseren
 
-### Mulighed B – via git (terminal), som du kender fra dine andre projekter
+1. Klik **Add file → Upload files** på repo-siden.
+2. Træk **filerne enkeltvis** ind (ikke en mappe).
+3. Skriv en commit-besked, og klik **Commit changes**.
+
+Upload af en fil med samme navn erstatter automatisk den gamle.
+
+### Mulighed B – via git
 
 ```bash
-cd sti/til/aarshjul
+cd sti/til/Aarshjul
 git init
 git add .
 git commit -m "Første version af årshjul"
 git branch -M main
-git remote add origin https://github.com/<dit-brugernavn>/aarshjul.git
+git remote add origin https://github.com/<dit-brugernavn>/Aarshjul.git
 git push -u origin main
 ```
 
 ## 3. Aktivér GitHub Pages
 
-1. I repoet: gå til **Settings → Pages**
-2. Under **Build and deployment**:
-   - **Source:** "Deploy from a branch"
-   - **Branch:** `main`, mappe: `/ (root)`
-3. Klik **Save**
-4. Vent 1-2 minutter — GitHub viser derefter URL'en øverst, typisk:
-   ```
-   https://<dit-brugernavn>.github.io/aarshjul/
-   ```
+1. I repoet: **Settings → Pages**.
+2. Under **Build and deployment**: **Source** = "Deploy from a branch", **Branch** = `main`, mappe `/ (root)`.
+3. Klik **Save**.
+4. Efter 1-2 minutter viser GitHub adressen øverst, typisk `https://<dit-brugernavn>.github.io/Aarshjul/`.
 
 ## 4. Test at det virker
 
-1. Åbn URL'en fra trin 3
-2. Du bør se **"Vælg kunde"**-skærmen med Holbæk Cykelsport
-3. Log ind med en admin-konto du selv har oprettet og tjek at hjulet vises
-4. **Skift adgangskoderne** med det samme (se README.da.md, afsnit "Administrere brugere")
+1. Åbn adressen fra trin 3. Du skal se årshjulet med alle måneder uden at logge ind.
+2. Klik **Login**, og log ind med en admin-konto, du selv har lavet (se README.da.md, "Administrere brugere").
+3. Tjek, at redigeringspanelet kommer frem.
 
-## 5. Fremtidige opdateringer (nye aktiviteter, nye kunder, nye år)
+## 5. Sæt årshjulet ind på hjemmesiden
 
-Når du redigerer aktiviteter i selve appen, gemmes ændringerne kun i browseren. For at gøre dem permanente:
+I en tekstblok på siden, hvor hjulet skal vises, indsættes:
 
-1. Klik **"Eksportér JSON"** i appen → filen downloades til din computer (fx `hcs-2026.json`)
-2. Upload/commit filen til roden af repoet på GitHub – den erstatter automatisk den gamle:
-   - **Browser:** **Add file → Upload files** → træk filen ind → **Commit changes**
-   - **Git:**
-     ```bash
-     git add hcs-2026.json
-     git commit -m "Opdaterede aktiviteter for HCS 2026"
-     git push
-     ```
-3. GitHub Pages opdaterer automatisk siden inden for typisk 30-60 sekunder efter push/commit
+```html
+<p><iframe src="https://skndkprivat.github.io/Aarshjul/" width="100%" height="1500" frameborder="0" scrolling="yes" style="border:0;max-width:1200px;display:block;margin:0 auto;"></iframe></p>
+```
 
-## 6. Tilføje en ny kunde eller nyt år
+Ret adressen, hvis dit brugernavn eller repo-navn er et andet.
 
-Følg trinene i README.da.md ("Tilføje en ny kunde" / "Tilføje et nyt år"), og upload de nye/ændrede filer til roden som beskrevet ovenfor.
+## 6. Fremtidige opdateringer
+
+Ændringer i appen gemmes først, når de udgives. Den nemmeste måde er knappen **"Udgiv til GitHub"** i redigeringspanelet:
+
+1. Opret et fine-grained GitHub-token til repoet med **Contents: Read and write** (se README.da.md, "Udgive ændringer").
+2. Ret aktiviteterne i appen, og klik **"Udgiv til GitHub"**. Første gang beder appen om tokenet.
+3. Siden opdateres for alle efter cirka et minut. Du behøver hverken download, upload eller git.
+
+Hvis du ikke har et token, kan du klikke **"Download JSON"** og uploade filen på GitHub (**Add file → Upload files**, samme filnavn), eller lægge den i mappen og køre `publicer.bat`. Kør `git pull` først, hvis nogen har udgivet imens.
+
+Nye år oprettes med knappen **"Tilføj nyt år"**. Den laver årsfilen og opdaterer `customers.json`.
 
 ## Fejlfinding
 
 | Problem | Løsning |
 |---|---|
-| "Kunne ikke indlæse kundeliste" på siden | Tjek at `customers.json` faktisk ligger i roden af repoet (samme niveau som `index.html`) — brug **Code**-fanen på GitHub til at se filoversigten |
-| Siden viser 404 | Tjek at Pages-kilden er sat til `main` / root, og at `index.html` ligger i roden af repoet (ikke i en undermappe) |
-| Filer havnede i en undermappe ved upload | Slet undermappen på GitHub, og upload filerne igen én for én (ikke som en mappe) |
-| Kan ikke logge ind på live-siden | Åbn browserens udviklerkonsol (F12) → fanen "Network" → tjek om `{kunde-id}-users.json` giver 200 eller 404 |
-| Ændringer vises ikke efter upload | Vent et minut, og tjek fanen **Actions** i repoet for at se om "pages build and deployment" er færdig |
-| Vil bruge eget domæne | Settings → Pages → "Custom domain" – kræver en CNAME-post hos jeres DNS-udbyder |
+| Siden er tom, eller årsvælgeren er tom | Tryk Ctrl+F5. Tjek, at `customers.json` ligger i roden af repoet (samme niveau som `index.html`) |
+| Siden viser 404 | Tjek, at Pages-kilden er `main` / root, og at `index.html` ligger i roden, ikke i en undermappe |
+| Filer havnede i en undermappe ved upload | Slet undermappen på GitHub, og upload filerne igen én for én |
+| Kan ikke logge ind | Åbn udviklerkonsollen (F12) → fanen "Network", og tjek, om `hcs-users.json` giver 200 eller 404 |
+| Ændringer vises ikke efter udgivelse | Vent et minut, tryk Ctrl+F5, og tjek fanen **Actions** i repoet, om "pages build and deployment" er færdig |
+| "Udgiv til GitHub" giver fejl | Se fejlfindingstabellen i README.da.md (token ugyldigt, ingen skriveadgang m.m.) |
+| Iframen er tom på hjemmesiden | Tjek adressen i `src`, og at siden åbner direkte i en browserfane |
+| Vil bruge eget domæne | Settings → Pages → "Custom domain" – kræver en CNAME-post hos DNS-udbyderen |
