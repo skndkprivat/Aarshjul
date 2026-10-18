@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HCS Årshjul</title>
+<meta name="robots" content="noindex">
+<script src="vendor/chart.umd.min.js"></script>
+<script src="vendor/chartjs-plugin-datalabels.min.js"></script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px;}
+  .container{max-width:1400px;margin:0 auto;background:#fff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:40px;}
+  h1{color:#333;font-size:2.5em;text-shadow:2px 2px 4px rgba(0,0,0,.1);margin:0;}
+  .subtitle{text-align:center;color:#666;margin-bottom:30px;font-size:1.1em;}
+  .hidden{display:none !important;}
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:30px;flex-wrap:wrap;}
+  .title-group{display:flex;align-items:center;gap:15px;flex-wrap:wrap;}
+  .badge{background:#4CAF50;color:#fff;padding:4px 12px;border-radius:12px;font-size:.75em;font-weight:600;}
+  .top-actions{display:flex;gap:10px;align-items:center;}
+  button{padding:12px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:none;border-radius:8px;font-size:16px;font-weight:600;cursor:pointer;transition:transform .2s,box-shadow .2s;}
+  button:hover{transform:translateY(-2px);box-shadow:0 5px 15px rgba(102,126,234,.4);}
+  .btn-outline{background:#fff;color:#667eea;border:2px solid #667eea;padding:10px 30px;}
+  .btn-outline:hover{background:#667eea;color:#fff;}
+  .btn-logout{background:linear-gradient(135deg,#ff9a9e 0%,#fecfef 100%);color:#333;padding:8px 20px;}
+  .btn-secondary{background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%);}
+  .btn-success{background:linear-gradient(135deg,#4facfe 0%,#00f2fe 100%);}
+  .btn-danger{background:linear-gradient(135deg,#fa709a 0%,#fee140 100%);}
+  .btn-small{padding:8px 15px;font-size:14px;}
+  .btn-calendar{background:linear-gradient(135deg,#43e97b 0%,#38f9d7 100%);padding:5px 12px;font-size:.85em;margin-left:10px;}
+  select,input,textarea{width:100%;padding:12px;border:2px solid #ddd;border-radius:8px;font-size:14px;font-family:inherit;}
+  select:focus,input:focus,textarea:focus{outline:none;border-color:#667eea;}
+  select.year{width:auto;padding:9px 12px;font-weight:600;color:#667eea;border-color:#667eea;}
+  textarea{min-height:80px;resize:vertical;}
+  label{display:block;margin-bottom:5px;color:#555;font-weight:500;}
+  .form-group{margin-bottom:15px;}
+  .chart-container{position:relative;margin:40px auto;max-width:800px;height:800px;}
+  .month-details{margin-top:30px;padding:20px;background:#f8f9fa;border-radius:15px;border:3px solid #667eea;}
+  .month-details h3{color:#333;margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;}
+  .close-details{background:#dc3545;color:#fff;border-radius:50%;width:30px;height:30px;padding:0;font-size:18px;line-height:1;}
+  .detail-item{background:#fff;padding:15px;margin-bottom:10px;border-radius:8px;border-left:4px solid #667eea;}
+  .detail-item h4{margin-bottom:8px;color:#333;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;}
+  .detail-meta{color:#666;font-size:.9em;line-height:1.6;white-space:pre-line;}
+  .admin-panel{margin-top:40px;padding:30px;background:#f8f9fa;border-radius:15px;}
+  .admin-panel h2{color:#333;margin-bottom:20px;padding-bottom:10px;border-bottom:3px solid #667eea;}
+  .date-row{display:grid;grid-template-columns:2fr 1fr;gap:10px;align-items:end;}
+  .date-preview{padding:12px;background:#e9ecef;border-radius:8px;text-align:center;font-weight:600;}
+  .activity-item{background:#fff;padding:15px;margin-bottom:10px;border-radius:10px;border-left:4px solid #667eea;display:flex;justify-content:space-between;align-items:center;gap:10px;}
+  .activity-meta{color:#666;font-size:.9em;margin-top:5px;}
+  .activity-buttons{display:flex;gap:10px;}
+  .notice{background:#fff3cd;color:#664d03;padding:12px 15px;border-radius:8px;margin-bottom:20px;border:1px solid #ffecb5;}
+  .success-message{background:#d4edda;color:#155724;padding:15px;border-radius:8px;margin-bottom:20px;border:1px solid #c3e6cb;text-align:center;}
+  .error{background:#f8d7da;color:#842029;padding:10px 12px;border-radius:8px;margin-bottom:15px;}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50;}
+  .login-box{background:#f8f9fa;border-radius:15px;box-shadow:0 5px 15px rgba(0,0,0,.2);padding:30px;width:100%;max-width:400px;}
+  .login-box h2{text-align:center;margin-bottom:20px;color:#333;}
+  .login-box button{width:100%;}
+  .login-box button+button{margin-top:10px;}
+  .footer-note{text-align:center;color:#888;font-size:.8em;margin-top:30px;}
+  @media(max-width:768px){
+    .container{padding:20px;} h1{font-size:1.8em;} .chart-container{height:500px;}
+    .activity-item{flex-direction:column;align-items:flex-start;} .activity-buttons{width:100%;} .activity-buttons button{flex:1;}
+    .btn-calendar{margin-left:0;margin-top:5px;}
+  }
+  @media print{ .top-actions,.admin-panel,.close-details,.btn-calendar,.footer-note{display:none !important;} body{background:#fff;padding:0;} .container{box-shadow:none;} }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="topbar">
+    <div class="title-group">
+      <h1 id="pageTitle">📅 HCS Årshjul</h1>
+      <span class="badge" id="roleBadge">v6.0</span>
+    </div>
+    <div class="top-actions">
+      <select class="year" id="yearSelect" aria-label="Vælg år"></select>
+      <button class="btn-outline" id="loginBtn">Login</button>
+      <button class="btn-logout hidden" id="logoutBtn">Log ud</button>
+    </div>
+  </div>
+
+  <p class="subtitle" id="subtitle">💡 Klik på en måned for at se dens aktiviteter</p>
+  <div id="loadError"></div>
+
+  <div class="chart-container"><canvas id="wheel"></canvas></div>
+
+  <div id="monthDetails" class="month-details hidden">
+    <h3><span id="detailsMonthName"></span><button class="close-details" id="closeDetails" aria-label="Luk">×</button></h3>
+    <div id="detailsList"></div>
+  </div>
+
+  <div id="adminPanel" class="admin-panel hidden">
+    <h2>📝 Rediger aktiviteter</h2>
+    <div class="notice" id="publishNotice">Ændringer gemmes automatisk på serveren, så snart du tilføjer, retter eller sletter.</div>
+    <div id="successMessage" class="success-message hidden"></div>
+
+    <div class="form-group"><label for="fMonth">Måned:</label><select id="fMonth"></select></div>
+    <div class="form-group"><label for="fName">Aktivitetsnavn: *</label><input id="fName" type="text" placeholder="F.eks. Generalforsamling"></div>
+    <div class="form-group">
+      <label for="fDay">Dag i måneden:</label>
+      <div class="date-row"><input id="fDay" type="number" min="1" max="31" placeholder="F.eks. 19"><span class="date-preview" id="datePreview">--/--</span></div>
+    </div>
+    <div class="form-group"><label for="fResp">Ansvarlig:</label><input id="fResp" type="text"></div>
+    <div class="form-group"><label for="fNotes">Bemærkninger:</label><textarea id="fNotes"></textarea></div>
+    <button id="addBtn">Tilføj aktivitet</button>
+    <button id="updateBtn" class="btn-success hidden">Gem ændringer</button>
+    <button id="cancelBtn" class="btn-secondary hidden" style="margin-top:10px">Annuller</button>
+
+    <div style="margin-top:30px"><h3>Aktuelle aktiviteter</h3><div id="activityList"></div></div>
+
+    <div style="margin-top:30px;display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn-secondary" id="addYearBtn">🗓️ Tilføj nyt år</button>
+      <button class="btn-secondary" id="historyBtn">🕘 Historik</button>
+      <button class="btn-secondary" id="usersBtn">👥 Brugere og adgangskode</button>
+      <button class="btn-secondary" id="saveJsonBtn">⬇️ Download backup</button>
+    </div>
+  </div>
+
+  <p class="footer-note" id="footerNote"></p>
+</div>
+
+<div id="loginOverlay" class="overlay hidden">
+  <form class="login-box" id="loginForm">
+    <h2>🔐 Administrator login</h2>
+    <div id="loginError"></div>
+    <div class="form-group"><label for="lUser">Brugernavn:</label><input id="lUser" type="text" autocomplete="username" required></div>
+    <div class="form-group"><label for="lPass">Adgangskode:</label><input id="lPass" type="password" autocomplete="current-password" required></div>
+    <button type="submit" id="loginSubmit">Log ind</button>
+    <button type="button" class="btn-secondary" id="loginCancel">Annuller</button>
+  </form>
+</div>
+
+<div id="modalRoot"></div>
+
+<script src="app.js"></script>
+</body>
+</html>

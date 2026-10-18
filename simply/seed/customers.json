@@ -1,0 +1,16 @@
+{
+  "customers": [
+    {
+      "id": "hcs",
+      "name": "Holbæk Cykelsport",
+      "shortName": "HCS",
+      "accent": "#2F6F5E",
+      "years": [
+        "2026",
+        "2027",
+        "2028",
+        "2030"
+      ]
+    }
+  ]
+}
